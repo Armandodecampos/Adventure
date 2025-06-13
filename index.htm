@@ -1,0 +1,1929 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Popó</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #87CEEB;
+            font-family: Arial, sans-serif;
+            overflow: hidden; /* Evita que o corpo role */
+        }
+        .container {
+            text-align: center;
+            z-index: 10000;
+            position: absolute; /* Permite fácil centralização e alternância de visibilidade */
+            background-color: rgba(255, 255, 255, 0.8); /* Fundo semi-transparente para o menu */
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            transition: opacity 0.5s ease-in-out;
+        }
+        .container.hidden {
+            opacity: 0;
+            pointer-events: none; /* Desativa a interação quando oculto */
+        }
+        .title {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+        .button {
+            font-size: 24px;
+            padding: 15px 30px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            display: inline-block; /* Para permitir preenchimento/margem */
+            margin-top: 20px;
+        }
+        .button:hover {
+            background-color: #45a049;
+            transform: translateY(-2px);
+        }
+        .button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Define a altura da área inferior e da borda */
+        :root {
+            --height-area-inferior: 20vh;
+            --border-width: 2px;
+        }
+
+        /* Estilos para a área total */
+        #areatotal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: green; /* Cor de fundo para visualização, será sobreposta pelo Phaser */
+            display: flex;
+            flex-direction: column;
+            visibility: hidden; /* Oculto por padrão, mostrado quando o jogo começa */
+            opacity: 0;
+            transition: visibility 0s 0.5s, opacity 0.5s ease-in-out;
+        }
+        #areatotal.visible {
+            visibility: visible;
+            opacity: 1;
+            transition: visibility 0s, opacity 0.5s ease-in-out;
+        }
+
+        /* Estilos para a área superior (onde o jogo Phaser será renderizado) */
+        #areaSuperior {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #333;
+            font-size: 24px;
+            z-index: 10;
+            transition: all 0.3s ease-in-out;
+            user-select: none;
+            cursor: default;
+            overflow: hidden;
+            border: 20px solid #D0D0D0; /* Borda ao redor da área do jogo */
+        }
+
+        /* Estilos para a área inferior (where the virtual controls will be rendered) */
+        #areaInferior {
+            height: var(--height-area-inferior);
+            background-color: #D0D0D0;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            color: #333;
+            font-size: 24px;
+            padding: 5px;
+            z-index: 10;
+            transition: all 0.3s ease-in-out;
+            user-select: none;
+            cursor: default;
+            flex-wrap: wrap;
+            align-content: center;
+            border-bottom:40px solid #D0D0D0; /* Borda inferior extra */
+        }
+
+        /* Estilos para as metades da área inferior */
+        .half-area {
+            flex: 1 1 48%;
+            min-width: 140px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 5px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        /* Estilo específico para a metade esquerda */
+        #leftHalf {
+            background-color: #D0D0D0;
+            border-radius: 10px 0 0 10px;
+        }
+
+        /* Estilo específico para a metade direita */
+        #rightHalf {
+            background-color: #D0D0D0;
+            border-radius: 0 10px 10px 0;
+        }
+
+        /* Contêiner para os botões de direção (setas) e botões numéricos */
+        .direction-buttons-container,
+        .number-buttons-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 3px;
+            max-width: 180px;
+            width: 100%;
+            height: 100%;
+            align-items: center;
+            justify-items: center;
+            padding: 3px;
+        }
+
+        /* Posicionamento dos botões de seta na grade */
+        #buttonUp { grid-area: 1 / 2 / 2 / 3; }
+        #buttonLeft { grid-area: 2 / 1 / 3 / 2; }
+        #buttonCenterArrow { grid-area: 2 / 2 / 3 / 3; }
+        #buttonRight { grid-area: 2 / 3 / 3 / 4; }
+        #buttonDown { grid-area: 3 / 2 / 4 / 3; }
+
+        /* Posicionamento dos botões numéricos na grade */
+        #buttonOne { grid-area: 1 / 2 / 2 / 3; }
+        #buttonTwo { grid-area: 2 / 1 / 3 / 2; }
+        #buttonCenterNumber { grid-area: 2 / 2 / 3 / 3; }
+        #buttonThree { grid-area: 2 / 3 / 3 / 4; }
+        #buttonFour { grid-area: 3 / 2 / 4 / 3; }
+
+        /* Estilos para botões circulares (setas e números) */
+        .circular-button {
+            width: 100%;
+            aspect-ratio: 1/1;
+            max-width: 50px;
+            max-height: 50px;
+            border-radius: 50%;
+            background-color: #444;
+            color: white;
+            border: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: clamp(16px, 4vw, 24px);
+            cursor: pointer;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+            transition: background-color 0.2s ease, transform 0.1s ease;
+        }
+
+        .circular-button:hover {
+            background-color: #666;
+            transform: translateY(-2px);
+        }
+
+        .circular-button:active {
+            background-color: #222;
+            transform: translateY(0);
+            box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Efeito de ativação temporária para o botão */
+        .circular-button.active {
+            background-color: #666;
+            transform: translateY(-2px);
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Estilos para o botão "Voltar ao Menu" */
+        #backToMenuButton {
+            position: fixed;
+            bottom: 280px;
+            right: 20px;
+            z-index: 9999;
+            padding: 10px 20px;
+            background: white;
+            border: 2px solid #333;
+            text-decoration: none;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background-color 0.2s ease, transform 0.1s ease;
+        }
+
+        #backToMenuButton:hover {
+            background-color: #f0f0f0;
+            transform: translateY(-1px);
+        }
+
+        #backToMenuButton:active {
+            transform: translateY(0);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+
+        /* Updated: Styles for the UI info card */
+        #ui-info-card {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 20vw; /* Responsive width */
+            max-width: 200px; /* Maximum width */
+            padding: 10px; /* Adjusted padding */
+            background: linear-gradient(145deg, #f0f0f0, #ffffff); /* Subtle gradient */
+            border: 2px solid #ccc; /* Light border */
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3); /* More prominent shadow */
+            z-index: 1000; /* Ensure it's above the canvas */
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start; /* Align contents to the left within the card */
+            gap: 8px; /* Slightly reduced spacing between elements inside the card */
+            color: #333;
+            font-size: 18px; /* Adjusted font size */
+            font-weight: 700; /* Make text bolder */
+        }
+
+        /* New styles for UI elements within the info card */
+        .ui-text {
+            font-size: 20px; /* Adjusted font for readability */
+            color: #333;
+            width: 100%; /* Occupy full width of card content area */
+            text-align: left; /* Ensure text is left-aligned */
+        }
+
+        .ui-bar-container {
+            width: 100%;
+            height: 20px; /* Slightly reduced height for health/energy bars */
+            background-color: #e0e0e0;
+            border: 1px solid #666;
+            border-radius: 5px;
+            overflow: hidden;
+            position: relative; /* For absolute positioning of fill */
+        }
+
+        .ui-bar-fill {
+            height: 100%;
+            background-color: #4CAF50; /* Default color, overridden by health/energy */
+            width: 0%;
+            border-radius: 4px;
+            transition: width 0.2s ease-out; /* Smooth transition for bar changes */
+        }
+
+        #health-bar-fill {
+            background-color: #ff4d4d; /* Red for health */
+        }
+
+        #energy-bar-fill {
+            background-color: #66cc66; /* Green for energy */
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="mainMenu">
+        <div class="title">Adventure</div>
+        <p class="button" id="startGameButton">Iniciar Jogo</p>
+    </div>
+
+    <div id="areatotal">
+        <div id="areaSuperior"></div>
+        <div id="areaInferior"></div>
+    </div>
+
+    <!-- NEW: UI Info Card with HTML elements -->
+    <div id="ui-info-card">
+        <div id="lives-display" class="ui-text"></div>
+        <div class="ui-text">Vida:</div>
+        <div id="health-bar-container" class="ui-bar-container">
+            <div id="health-bar-fill" class="ui-bar-fill"></div>
+        </div>
+        <div class="ui-text">Energia:</div>
+        <div id="energy-bar-container" class="ui-bar-container">
+            <div id="energy-bar-fill" class="ui-bar-fill"></div>
+        </div>
+        <div id="coins-display" class="ui-text"></div>
+        <div id="projectiles-display" class="ui-text"></div>
+    </div>
+
+    <p id="backToMenuButton" style="display: none;">
+  <i class="fas fa-arrow-up"></i>
+</p>
+
+    <audio id="bgMusic" loop autoplay>
+        <source src="https://dl.dropbox.com/scl/fi/mnz8jwbc15g7bj3dna3cr/musicbox-23766.mp3?rlkey=m32pbszbtgh2goiuwa3h76csj&st=n2w8izhg&dl=0" type="audio/mpeg">
+        O seu navegador não suporta áudio.
+    </audio>
+
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
+    <script>
+        // Ensures audio is played after user interaction
+        document.addEventListener('click', () => {
+            const bgMusic = document.getElementById('bgMusic');
+            if (bgMusic && bgMusic.paused) {
+                bgMusic.play().catch(e => console.log("Failed to start music: ", e));
+            }
+        }, { once: true });
+
+        // Gets references to DOM elements
+        const mainMenu = document.getElementById('mainMenu');
+        const startGameButton = document.getElementById('startGameButton');
+        const areaTotal = document.getElementById('areatotal');
+        const areaSuperior = document.getElementById('areaSuperior');
+        const areaInferior = document.getElementById('areaInferior');
+        const backToMenuButton = document.getElementById('backToMenuButton');
+        const uiInfoCard = document.getElementById('ui-info-card');
+
+        // NEW: References to HTML UI elements
+        const livesDisplay = document.getElementById('lives-display');
+        const healthBarFill = document.getElementById('health-bar-fill');
+        const energyBarFill = document.getElementById('energy-bar-fill');
+        const coinsDisplay = document.getElementById('coins-display');
+        const projectilesDisplay = document.getElementById('projectiles-display');
+
+        // Variables for virtual button states
+        let isALeftPressed = false;
+        let isDRightPressed = false;
+
+        // Global variables for the respawn system
+        let isRespawning = false;
+        let respawnTimer = null;
+
+        // Global variables for the attack system
+        let isAttacking = false;
+        let attackCooldown = 500;
+        let lastAttackTime = 0;
+
+        // New variable to track if the player is currently jumping
+        let isPlayerJumping = false;
+
+        // Variables for the energy system (replacing jumps)
+        const MAX_ENERGY = 100; // Maximum energy
+        let currentEnergy = MAX_ENERGY; // Current energy
+        const JUMP_ENERGY_COST = 10; // Energy cost per jump
+        const ATTACK_ENERGY_COST = 15; // Energy cost per attack
+        const ENERGY_RECHARGE_RATE_PER_SEC = 15; // Energy recharge rate per second (in units)
+        let energyRechargeEvent; // Timer event for energy recharge
+
+        // Variables for player health system (NEW)
+        const MAX_HEALTH = 100; // Maximum player health
+        let currentHealth = MAX_HEALTH; // Current player health
+        const PLAYER_HIT_COOLDOWN = 1000; // Invulnerability time in ms after being hit
+        let lastPlayerHitTime = 0;
+
+        // Constants for enemies (NEW)
+        const ENEMY_PURSUIT_RANGE = 250; // Distance at which the enemy pursues the player
+        const ENEMY_ATTACK_RANGE = 100; // Distance at which the enemy attacks the player (ADJUSTED)
+        const ENEMY_ATTACK_DAMAGE = 10; // Enemy attack damage (ADJUSTED)
+        const ENEMY_ATTACK_COOLDOWN = 1200; // Enemy attack cooldown in ms (ADJUSTED)
+        const ENEMY_HEALTH = 50; // Initial enemy health
+        const ENEMY_ENERGY = 100; // Initial enemy energy
+        const ENEMY_RECHARGE_RATE = 45; // Enemy energy recharge rate per second (INCREASED)
+
+        // Constants for Projectiles (NEW)
+        const PROJECTILE_SPEED = 300; // Projectile speed
+        const PROJECTILE_DAMAGE = 25; // Projectile damage
+        const INITIAL_PROJECTILES = 5; // Initial number of projectiles
+        let currentProjectiles; // Current number of projectiles
+
+        // Global variables for score and coins (re-added)
+        let score = 0;
+        let coinsCollected = 0;
+
+
+        /**
+         * Creates a circular button with an icon.
+         * @param {string} id - The ID of the button element.
+         * @param {string} iconClass - The Font Awesome icon class to use (e.g., 'fa-arrow-up').
+         * @returns {HTMLButtonElement} The created button element.
+         */
+        function createIconButton(id, iconClass) {
+            const button = document.createElement('button');
+            button.id = id;
+            button.classList.add('circular-button');
+            const icon = document.createElement('i');
+            icon.classList.add('fas', iconClass);
+            button.appendChild(icon);
+            return button;
+        }
+
+        /**
+         * Creates a circular button with a number or letter.
+         * @param {string} id - The ID of the button element.
+         * @param {string} textContent - The text to display on the button (e.g., 'W', 'J').
+         * @returns {HTMLButtonElement} The created button element.
+         */
+        function createNumberButton(id, textContent) {
+            const button = document.createElement('button');
+            button.id = id;
+            button.classList.add('circular-button');
+            button.textContent = textContent;
+            return button;
+        }
+
+        // Creates directional buttons
+        const buttonUp = createNumberButton('buttonUp', 'W');
+        const buttonLeft = createNumberButton('buttonLeft', 'A');
+        const buttonRight = createNumberButton('buttonRight', 'D');
+        const buttonDown = createNumberButton('buttonDown', 'S');
+
+        // Central element for the directional button grid (spacer only)
+        const buttonCenterArrow = document.createElement('div');
+        buttonCenterArrow.id = 'buttonCenterArrow';
+
+        // Adds directional buttons to their container
+        const directionButtonsContainer = document.createElement('div');
+        directionButtonsContainer.classList.add('direction-buttons-container');
+        directionButtonsContainer.appendChild(buttonUp);
+        directionButtonsContainer.appendChild(buttonLeft);
+        directionButtonsContainer.appendChild(buttonCenterArrow);
+        directionButtonsContainer.appendChild(buttonRight);
+        directionButtonsContainer.appendChild(buttonDown);
+
+        // Adds the directional button container to the left half of the bottom area
+        const leftHalf = document.createElement('div');
+        leftHalf.id = 'leftHalf';
+        leftHalf.classList.add('half-area');
+        leftHalf.appendChild(directionButtonsContainer);
+
+        // Creates action buttons (numbers/letters)
+        const buttonOne = createNumberButton('buttonOne', 'I');
+        const buttonTwo = createNumberButton('buttonTwo', 'J'); // 'J' button for attack
+        const buttonThree = createNumberButton('buttonThree', 'L');
+        const buttonFour = createNumberButton('buttonFour', 'K'); // 'K' button for jump
+
+        // Central element for the action button grid (spacer only)
+        const buttonCenterNumber = document.createElement('div');
+        buttonCenterNumber.id = 'buttonCenterNumber';
+
+        // Adds action buttons to their container
+        const numberButtonsContainer = document.createElement('div');
+        numberButtonsContainer.classList.add('number-buttons-container');
+        numberButtonsContainer.appendChild(buttonOne);
+        numberButtonsContainer.appendChild(buttonTwo);
+        numberButtonsContainer.appendChild(buttonCenterNumber);
+        numberButtonsContainer.appendChild(buttonThree);
+        numberButtonsContainer.appendChild(buttonFour);
+
+        // Adds the action button container to the right half of the bottom area
+        const rightHalf = document.createElement('div');
+        rightHalf.id = 'rightHalf';
+        rightHalf.classList.add('half-area');
+        rightHalf.appendChild(numberButtonsContainer);
+
+        // Adds the halves to the bottom area
+        areaInferior.appendChild(leftHalf);
+        areaInferior.appendChild(rightHalf);
+
+        let gameInstance = null; // Stores the Phaser game instance
+
+        /**
+         * Initializes and starts the Phaser game.
+         */
+        function startGame() {
+            mainMenu.classList.add('hidden'); // Hides the main menu
+            areaTotal.classList.add('visible'); // Shows the game area
+            backToMenuButton.style.display = 'block'; // Shows the "Back to Menu" button
+            uiInfoCard.style.display = 'flex'; // Shows the UI info card
+
+            if (gameInstance === null) { // Creates the game only once
+                // Phaser Game Integration
+                let gameWidth;
+                let gameHeight;
+
+                /**
+                 * Updates game dimensions based on the upper area size.
+                 */
+                function updateGameDimensions() {
+                    const areaSuperiorElement = document.getElementById('areaSuperior');
+                    if (areaSuperiorElement) {
+                        gameWidth = areaSuperiorElement.clientWidth;
+                        gameHeight = areaSuperiorElement.clientHeight;
+                    } else {
+                        // Fallback if the upper area is not found (using window dimensions)
+                        gameWidth = window.innerWidth;
+                        const areaInferiorHeight = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--height-area-inferior')) / 100 * window.innerHeight;
+                        const borderWidth = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--border-width'));
+                        gameHeight = window.innerHeight - areaInferiorHeight - borderWidth;
+                    }
+                }
+
+                updateGameDimensions(); // Calls the function to set initial game dimensions
+
+                // Phaser game configuration
+                const config = {
+                    type: Phaser.AUTO, // Automatically detects WebGL or Canvas
+                    width: gameWidth,
+                    height: gameHeight,
+                    parent: 'areaSuperior', // Renders the game inside the 'areaSuperior' element
+                    backgroundColor: '#87CEEB', // Sky background color (light blue)
+                    physics: {
+                        default: 'arcade', // Uses the Arcade physics system
+                        arcade: {
+                            gravity: { y: 600 }, // Vertical gravity
+                            debug: false // Set to 'true' to visualize collision boxes for debugging
+                        }
+                    },
+                    scene: {
+                        preload: preload, // Function to load assets
+                        create: create,   // Function to set up the game
+                        update: update    // Function for the main game loop
+                    }
+                };
+
+                gameInstance = new Phaser.Game(config); // Creates the Phaser game instance
+
+                // Game variable declarations
+                let player;
+                let platforms; // Group for platforms
+                let cursors;   // Object for keyboard inputs (although movement is flag-controlled)
+                let enemies;   // Group for enemies
+                let coins;     // Group for coins
+                let lives = 5; // Initial lives value (used for game over, player's internal life)
+                let gameOver = false; // Game state flag
+                let WORLD_WIDTH = 5000; // Initial world width, will be dynamically expanded
+                const TILE_SIZE = 64;   // Base tile size
+                let enemySpawnTimer;     // Timer for enemy spawning at intervals
+                const MAX_ENEMIES = 5;   // Maximum number of enemies on screen at the same time
+                let lastGeneratedX = 0;  // Tracks the last X coordinate where the level was generated
+
+                let initialJumpVelocity; // Initial jump velocity
+
+                // Variables for the projectile system
+                let projectiles; // Group for projectiles
+
+
+                /**
+                 * Recalculates jump velocity based on current game dimensions.
+                 */
+                function updateJumpVelocity() {
+                    updateGameDimensions();
+                    // Jump height increased by touch/pressure
+                    // Increasing the multiplier to make jumps higher
+                    const jumpHeightPerTap = (gameHeight * 4.0) / MAX_ENERGY * 4;
+                    initialJumpVelocity = -Math.sqrt(2 * config.physics.arcade.gravity.y * jumpHeightPerTap);
+                }
+
+                updateJumpVelocity(); // Calculates initial jump velocity
+
+                /**
+                 * Updates the health bar's visual fill.
+                 */
+                function updateHealthBar() {
+                    const fillPercentage = (currentHealth / MAX_HEALTH) * 100;
+                    healthBarFill.style.width = fillPercentage + '%';
+                }
+
+                /**
+                 * Updates the energy bar's visual fill.
+                 */
+                function updateEnergyBar() {
+                    const fillPercentage = (currentEnergy / MAX_ENERGY) * 100;
+                    energyBarFill.style.width = fillPercentage + '%';
+                }
+
+                /**
+                 * Updates the text displaying the player's projectile count.
+                 */
+                function updateProjectilesText() {
+                    projectilesDisplay.innerHTML = `${currentProjectiles} <i class="fas fa-star"></i>`;
+                }
+
+                /**
+                 * Updates the text displaying the player's collected coins.
+                 */
+                function updateCoinsCollectedText() {
+                    coinsDisplay.innerHTML = `${coinsCollected} <i class="fas fa-coins"></i>`;
+                }
+
+                /**
+                 * Updates the text displaying the player's lives.
+                 */
+                function updateLivesText() {
+                    livesDisplay.innerHTML = `${lives}x <i class="fas fa-heart"></i>`;
+                }
+
+
+                /**
+                 * Loads all game assets.
+                 * @param {Phaser.Scene} scene - The current Phaser scene.
+                 */
+                function preload() {
+                    this.load.image('ground', 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Grass_02221.JPG/1280px-Grass_02221.JPG');
+                    this.load.image('player', 'https://dl.dropbox.com/scl/fi/jtwwwm0x5bg9250p60g7k/boneco-parado.png?rlkey=47icgfrhfwk93q6s2c5b8bx2l&st=owzjfjxl&dl=0');
+                    // New images for walking animation
+                    this.load.image('player_walk1', 'https://dl.dropbox.com/scl/fi/30c5rjrrkwb2uuduoow1j/boneco-andando-1.png?rlkey=al66ahfke27wo259sup4hmv6a&st=8bvs2dr7&dl=0'); // Walk image 1
+                    this.load.image('player_walk2', 'https://dl.dropbox.com/scl/fi/jtwwwm0x5bg9250p60g7k/boneco-parado.png?rlkey=47icgfrhfwk93q6s2c5b8bx2l&st=owzjfjxl&dl=0'); // Walk image 2
+                    this.load.image('player_walk3', 'https://dl.dropbox.com/scl/fi/1egltlccu5ogo53bwvn2l/boneco-andando2.png?rlkey=7sd5m810ls9tdvkg3m5530yas&st=1332xloc&dl=0'); // Walk image 3
+                    this.load.image('enemy', 'https://dl.dropbox.com/scl/fi/o4j6bygwtz1fcs302b6ou/Super-Mario-Galaxy-PNG-Clipart-Background.png?rlkey=rhv6p0wfy2lziejo7tsvssv38&st=p7u36ecy&dl=0');
+                    this.load.image('platform', 'https://dl.dropbox.com/scl/fi/23w7h3paiy6r2ovsnigki/madeira.jpg?rlkey=ktb7ajk53tfbnp1t6qcn60y71&st=079eveat&dl=0');
+                    this.load.image('coin', 'https://dl.dropbox.com/scl/fi/bwyeqf266unuedp0wovj7/um-real.png?rlkey=x045r78nkme9lcjfsfao6pw74&st=dkzujkk7&dl=0');
+                    this.load.audio('attackSound', 'https://dl.dropbox.com/scl/fi/j9o5labmpbuodfw9xj458/sword-slash-and-swing-185432.mp3?rlkey=n505hf2w966w9kyorbg0kyh6v&raw=1'); // Attack sound
+                    this.load.audio('coinSound', 'https://dl.dropbox.com/scl/fi/t2ytb8tna408rz97yehvu/coin-257878.mp3?rlkey=f0dtj7h871wjq34alpluhmdsy&raw=1'); // Coin sound
+                    this.load.image('player_jumping', 'https://dl.dropbox.com/scl/fi/fzgzz1ub7546kvx9yo3x2/boneco-pulando.png?rlkey=kqb63pcbqy20t6h326uvbhmgw&st=v2aj5s49&dl=0');
+                    this.load.image('player_airborne', 'https://dl.dropbox.com/scl/fi/o1obk8fobf986fkzdnqrw/boneco-caindo.png?rlkey=5x4vhh3gxy3lq3qoy4rvbz1tn&st=3q8oygi8&dl=0');
+                    // NEW IMAGE: Image for player's frontal attack (updated placeholder)
+                    this.load.image('player_attack', 'https://dl.dropbox.com/scl/fi/zgkbgxipu2v9i4shoipy7/boneco-chutando.png?rlkey=1bqt967ke7mlw1u9j4ytk7ahl&st=3q8abcv8&dl=0');
+                    this.load.image('projectile', 'https://dl.dropbox.com/scl/fi/gwxkw8d2hrw1r4kfpccfp/estrela-ninja.png?rlkey=lt59ll86f6athm4kyhrww2lod&st=r5cq0lh3&dl=0'); // Projectile image
+                }
+
+                /**
+                 * Sets up the initial game state.
+                 * @param {Phaser.Scene} scene - The current Phaser scene.
+                 */
+                function create() {
+                    // Resets game state for a new start
+                    score = 0; // Re-added score initialization
+                    coinsCollected = 0; // Re-added coinsCollected initialization
+                    lives = 5;
+                    gameOver = false;
+                    isRespawning = false;
+                    if (respawnTimer) {
+                        respawnTimer.remove(false);
+                        respawnTimer = null;
+                    }
+                    currentEnergy = MAX_ENERGY; // Resets energy
+                    currentHealth = MAX_HEALTH; // Resets player health (NEW)
+                    lastPlayerHitTime = 0; // Resets last hit time (NEW)
+                    lastGeneratedX = 0;
+                    isPlayerJumping = false; // Resets jump state
+                    isAttacking = false; // Resets attack state
+                    lastAttackTime = 0; // Resets last attack time
+                    currentProjectiles = INITIAL_PROJECTILES; // Resets projectiles (NEW)
+
+                    // Sets initial physics world bounds
+                    this.physics.world.setBounds(0, 0, WORLD_WIDTH, gameHeight);
+
+                    // Creates game groups
+                    platforms = this.physics.add.staticGroup(); // Static platforms
+                    coins = this.physics.add.group(); // Coins
+                    enemies = this.physics.add.group(); // Enemies
+                    projectiles = this.physics.add.group(); // Projectiles (NEW)
+
+                    const playerStartX = 100;
+
+                    // Generates the initial game level
+                    generateLevel(this, platforms, coins, 0);
+
+                    // Player configuration
+                    player = this.physics.add.sprite(playerStartX, 0, 'player');
+                    player.setBounce(0.1); // Small bounce on collision
+                    player.setCollideWorldBounds(false); // Allows player to leave world bounds to trigger new generation
+                    player.body.setGravityY(config.physics.arcade.gravity.y); // Applies gravity to the player
+                    player.setScale(0.3); // Scales the player - this scale will be applied to all player textures
+                                         // Ensuring player, player_jumping, and player_airborne have the same display size.
+
+                    // EXPLICITLY SETS THE PLAYER'S PHYSICS BODY SIZE
+                    // This ensures the collision box doesn't change when switching textures.
+                    player.body.setSize(player.width, player.height);
+                    player.body.offset.x = 0; // Adjust offset if body is not centered
+                    player.body.offset.y = 0; // Adjust offset if body is not centered
+
+
+                    // Ensures player appears correctly on the initial platform
+                    const initialGroundPlatform = platforms.children.entries.find(p =>
+                        p.x <= playerStartX && p.x + p.displayWidth >= playerStartX &&
+                        p.y >= (gameHeight - TILE_SIZE - 200) && p.y <= (gameHeight - TILE_SIZE + 20)
+                    );
+                    if (initialGroundPlatform) {
+                        player.setPosition(playerStartX, initialGroundPlatform.y - (player.displayHeight / 2));
+                    } else {
+                        player.setPosition(playerStartX, gameHeight - (player.displayHeight / 2));
+                        console.warn("Could not find a specific platform for initial player spawn. Using default ground (aligned to bottom of screen).");
+                    }
+
+                    // Creates player animations
+                    this.anims.create({
+                        key: 'left',
+                        // Using new images for walking animation
+                        frames: [{ key: 'player_walk1' }, { key: 'player_walk2' }, { key: 'player_walk3' }],
+                        frameRate: 15, // 15 fps = 3 images in 0.2 seconds
+                        repeat: -1 // Infinite loop
+                    });
+
+                    this.anims.create({
+                        key: 'turn',
+                        frames: [{ key: 'player' }], // Still image
+                        frameRate: 20
+                    });
+
+                    this.anims.create({
+                        key: 'right',
+                        // Using new images for walking animation
+                        frames: [{ key: 'player_walk1' }, { key: 'player_walk2' }, { key: 'player_walk3' }],
+                        frameRate: 15, // 15 fps = 3 images in 0.2 seconds
+                        repeat: -1 // Infinite loop
+                    });
+
+                    // NEW ANIMATIONS: for jump and airborne state
+                    this.anims.create({
+                        key: 'jump',
+                        frames: [{ key: 'player_jumping' }],
+                        frameRate: 1, // Single frame, no cycle animation
+                        repeat: 0
+                    });
+
+                    this.anims.create({
+                        key: 'airborne',
+                        frames: [{ key: 'player_airborne' }],
+                        frameRate: 1, // Single frame, no cycle animation
+                        repeat: 0
+                    });
+
+                    // NEW ANIMATION: For frontal attack
+                    this.anims.create({
+                        key: 'attack',
+                        frames: [{ key: 'player_attack' }], // Your attack image
+                        frameRate: 10, // Adjust as needed
+                        repeat: 0 // Play once
+                    });
+
+
+                    // Enemy configuration
+                    enemySpawnTimer = this.time.addEvent({
+                        delay: 5000, // Spawns a new enemy every 5 seconds
+                        callback: () => {
+                            if (enemies.countActive(true) < MAX_ENEMIES && !gameOver) {
+                                spawnEnemy(this);
+                            }
+                        },
+                        loop: true
+                    });
+
+                    // Collision configuration
+                    this.physics.add.collider(player, platforms, (player, platform) => {
+                        if (player.body.touching.down) {
+                            // No longer recharges energy when touching the ground, recharge is time-based
+                            isPlayerJumping = false;
+                        }
+                    }, null, this);
+                    this.physics.add.collider(enemies, platforms);
+                    this.physics.add.collider(coins, platforms);
+                    this.physics.add.collider(player, enemies, hitEnemy, null, this);
+                    this.physics.add.overlap(player, coins, collectCoin, null, this);
+                    this.physics.add.overlap(projectiles, enemies, hitEnemyByProjectile, null, this); // Projectile-enemy collision (NEW)
+
+                    // Camera configuration
+                    this.cameras.main.setBounds(0, 0, WORLD_WIDTH, gameHeight);
+                    const offsetX = -0.25 * gameWidth; // Adjusted to 35% from the right edge of the screen
+                    this.cameras.main.startFollow(player, true, 0.20, 0.20, offsetX, 0);
+
+                    // Initialize HTML UI elements
+                    updateHealthBar();
+                    updateEnergyBar();
+                    updateCoinsCollectedText();
+                    updateProjectilesText();
+                    updateLivesText();
+
+                    // Timer event for player energy recharge
+                    energyRechargeEvent = this.time.addEvent({
+                        delay: 1000 / ENERGY_RECHARGE_RATE_PER_SEC, // Recharges X units per second
+                        callback: () => {
+                            if (!gameOver && currentEnergy < MAX_ENERGY && !isRespawning) {
+                                currentEnergy += 1; // Recharges 1 unit at a time
+                                currentEnergy = Phaser.Math.Clamp(currentEnergy, 0, MAX_ENERGY);
+                                updateEnergyBar(); // Updates the HTML energy bar
+                            }
+                        },
+                        callbackScope: this,
+                        loop: true
+                    });
+
+                    /**
+                     * Handles player jump input.
+                     */
+                    this.handleJumpInput = () => { // Defined as a method of the scene
+                        if (gameOver || isRespawning) return;
+
+                        // Allows jump if there is enough energy
+                        if (currentEnergy >= JUMP_ENERGY_COST) {
+                            player.setVelocityY(initialJumpVelocity);
+                            currentEnergy -= JUMP_ENERGY_COST;
+                            currentEnergy = Phaser.Math.Clamp(currentEnergy, 0, MAX_ENERGY); // Ensures energy is not negative
+                            updateEnergyBar(); // Updates the HTML energy bar
+
+                            // Plays jump animation
+                            player.anims.play('jump');
+                            isPlayerJumping = true; // Sets flag to true when jump starts
+                        }
+                    };
+
+                    /**
+                     * Handles player attack input (melee attack).
+                     */
+                    this.handleAttackInput = () => { // Defined as a method of the scene
+                        if (gameOver || isRespawning) return;
+
+                        // Implements cooldown and checks energy for attack
+                        const currentTime = this.time.now;
+                        if (currentTime < lastAttackTime + attackCooldown || currentEnergy < ATTACK_ENERGY_COST) {
+                            return; // Still in cooldown or not enough energy
+                        }
+
+                        lastAttackTime = currentTime;
+                        isAttacking = true;
+
+                        currentEnergy -= ATTACK_ENERGY_COST; // Consumes energy from attack
+                        currentEnergy = Phaser.Math.Clamp(currentEnergy, 0, MAX_ENERGY); // Ensures energy is not negative
+                        updateEnergyBar(); // Updates the HTML energy bar
+
+                        // Plays attack sound (if loaded)
+                        this.sound.play('attackSound');
+
+                        // Visual feedback for attack (e.g., temporary tint)
+                        player.setTint(0xaaaaaa); // Light gray tint
+                        this.time.delayedCall(100, () => {
+                            player.clearTint();
+                        }, [], this);
+
+                        // Determines attack range based on player direction
+                        const attackRange = 70; // Attack distance
+                        const attackWidth = player.displayWidth * 0.7; // Attack area width
+                        const attackHeight = player.displayHeight * 0.8; // Attack area height
+
+                        // Calculates attack area coordinates
+                        let attackX = player.x;
+                        if (player.flipX) { // Facing left
+                            attackX = player.x - attackRange;
+                        } else { // Facing right
+                            attackX = player.x + attackRange;
+                        }
+
+                        // Creates a temporary rectangle for attack detection (hitbox)
+                        const attackHitbox = new Phaser.Geom.Rectangle(
+                            attackX - attackWidth / 2, // Centers the hitbox on attackX
+                            player.y - attackHeight / 2,
+                            attackWidth,
+                            attackHeight
+                        );
+
+                        // Iterates over enemies and checks for overlap with attack hitbox
+                        enemies.children.each(function(enemy) {
+                            if (enemy.active && Phaser.Geom.Rectangle.Contains(attackHitbox, enemy.x, enemy.y)) {
+                                // Enemy hit! Reduces enemy health.
+                                enemy.currentHealth -= 25; // Player attack damage
+                                updateEnemyHealthBar(this, enemy); // Passes 'this' (the scene) as argument
+                                if (enemy.currentHealth <= 0) {
+                                    enemy.healthBar.destroy(); // Removes enemy health bar
+                                    enemy.destroy();
+                                    score += 50; // Adds points for destroying an enemy (re-added)
+                                } else {
+                                    // Visual feedback that the enemy was hit
+                                    enemy.setTint(0xff6666); // Light red tint
+                                    this.time.delayedCall(150, () => {
+                                        enemy.clearTint();
+                                    }, [], this);
+                                }
+                            }
+                        }, this); // Adds 'this' as context for the callback function
+                    };
+
+                    /**
+                     * Handles projectile firing.
+                     */
+                    this.handleProjectileShoot = () => { // Defined as a method of the scene
+                        if (gameOver || isRespawning) return;
+
+                        if (currentProjectiles > 0) {
+                            currentProjectiles--;
+                            updateProjectilesText(); // Updates projectile UI (HTML)
+
+                            // Creates the projectile at player's position
+                            const projectile = projectiles.create(player.x, player.y, 'projectile');
+                            projectile.setScale(0.1); // Adjusts projectile scale (DECREASED)
+                            projectile.body.setAllowGravity(false); // Projectile is not affected by gravity
+                            projectile.body.setCollideWorldBounds(false); // Allows projectile to leave the screen
+
+                            // Sets projectile velocity in the direction the player is facing
+                            if (player.flipX) { // Player facing left
+                                projectile.setVelocityX(-PROJECTILE_SPEED);
+                            } else { // Player facing right
+                                projectile.setVelocityX(PROJECTILE_SPEED);
+                            }
+
+                            // Schedules projectile destruction after a time to prevent accumulation
+                            this.time.delayedCall(2000, () => { // Destroys after 2 seconds
+                                if (projectile.active) { // Checks if still active (not collided)
+                                    projectile.destroy();
+                                }
+                            }, [], this);
+                        }
+                    };
+                }
+
+                /**
+                 * Main game update loop.
+                 * @param {number} time - Current game time.
+                 * @param {number} delta - Time elapsed since last frame.
+                 * @param {Phaser.Scene} scene - The current Phaser scene.
+                 */
+                function update(time, delta) {
+                    if (gameOver) {
+                        return;
+                    }
+
+                    // Applies horizontal velocity based on user input
+                    if (!isAttacking && isALeftPressed && !isRespawning) { // Ensures not attacking when moving
+                        player.setVelocityX(-160);
+                        player.flipX = true; // Flips sprite to the left
+                    } else if (!isAttacking && isDRightPressed && !isRespawning) { // Ensures not attacking when moving
+                        player.setVelocityX(160);
+                        player.flipX = false; // Flips sprite to the right
+                    } else {
+                        if (!isRespawning && !isAttacking) { // Only stops when not attacking
+                           player.setVelocityX(0);
+                        }
+                    }
+
+                    // Handles player animations
+                    if (isAttacking) { // If attacking, play attack animation
+                        if (player.anims.currentAnim?.key !== 'attack') {
+                            player.anims.play('attack');
+                        }
+                    } else if (player.body.blocked.down) { // Player is on the ground
+                        isPlayerJumping = false; // Ensures jump flag is false
+
+                        if (player.body.velocity.x !== 0) { // If moving horizontally
+                            // Plays the appropriate walking animation if not already playing
+                            if (player.body.velocity.x < 0) {
+                                if (player.anims.currentAnim?.key !== 'left') {
+                                    player.anims.play('left', true);
+                                }
+                            } else { // player.body.velocity.x > 0
+                                if (player.anims.currentAnim?.key !== 'right') {
+                                    player.anims.play('right', true);
+                                }
+                            }
+                        } else { // If not moving horizontally
+                            // Plays idle animation if not already playing
+                            if (player.anims.currentAnim?.key !== 'turn') {
+                                player.anims.play('turn'); // Idle animation
+                            }
+                        }
+                    } else { // Player is in the air
+                        // If player is moving up (jumping)
+                        if (player.body.velocity.y < 0) {
+                            if (player.anims.currentAnim?.key !== 'jump') {
+                                player.anims.play('jump');
+                            }
+                        } else { // If player is moving down (falling)
+                            if (player.anims.currentAnim?.key !== 'airborne') {
+                                player.anims.play('airborne');
+                            }
+                        }
+                    }
+
+
+                    // Infinite map generation
+                    const cameraRightEdge = this.cameras.main.scrollX + this.cameras.main.width;
+                    if (cameraRightEdge + 500 > lastGeneratedX) {
+                        generateLevel(this, platforms, coins, lastGeneratedX);
+                        WORLD_WIDTH = Math.max(WORLD_WIDTH, lastGeneratedX + 500);
+                        this.physics.world.setBounds(0, 0, WORLD_WIDTH, gameHeight);
+                        this.cameras.main.setBounds(0, 0, WORLD_WIDTH, gameHeight);
+                    }
+
+                    // Despawns platforms and coins that are too far behind the camera
+                    const cameraLeftEdge = this.cameras.main.scrollX;
+                    platforms.children.each(function(platform) {
+                        if (platform.x + platform.displayWidth < cameraLeftEdge - 100) {
+                            platform.destroy();
+                        }
+                    });
+                    coins.children.each(function(coin) {
+                        if (coin.x + coin.displayWidth < cameraLeftEdge - 100) {
+                            coin.destroy();
+                        }
+                        // FIX: More aggressive coin despawn
+                        if (coin.x + coin.displayWidth < cameraLeftEdge - 50) {
+                            coin.destroy();
+                        }
+                    });
+
+                    // Checks if the player fell into the abyss
+                    if (player.y > gameHeight + 100) {
+                        takeDamage(this, MAX_HEALTH); // Passes 'this' (the scene) as argument
+                    }
+
+                    // Checks if the player is completely off-screen horizontally (behind the camera)
+                    const playerLeftEdge = player.x + player.displayWidth / 2;
+                    if (playerLeftEdge < this.cameras.main.scrollX - 50) {
+                        takeDamage(this, MAX_HEALTH); // Passes 'this' (the scene) as argument
+                    }
+
+                    // Enemy movement (simple patrol) and fall prevention (MODIFIED FOR PURSUIT AND ATTACK)
+                    enemies.children.each(function(enemy) {
+                        if (!enemy.body || gameOver) return;
+
+                        // Despawns enemies that are too far behind the camera
+                        if (enemy.x + enemy.displayWidth < cameraLeftEdge - 100) {
+                            enemy.healthBar.destroy(); // Removes enemy health bar
+                            enemy.destroy();
+                            return;
+                        }
+
+                        // Updates enemy health bar to follow the enemy
+                        updateEnemyHealthBar(this, enemy); // Passes 'this' (the scene) as argument
+
+                        const distanceToPlayer = Phaser.Math.Distance.Between(enemy.x, enemy.y, player.x, player.y);
+                        const currentTime = this.time.now;
+
+                        // Pursuit logic
+                        if (distanceToPlayer < ENEMY_PURSUIT_RANGE) {
+                            let enemySpeed = 50; // Base speed for pursuit
+
+                            // Determine the check point for ground ahead
+                            // 10 pixels ahead of enemy edge, 10 pixels below enemy base
+                            let checkXOffset = (enemy.flipX ? -1 : 1) * (enemy.displayWidth / 2 + 10);
+                            let checkYOffset = enemy.displayHeight / 2 + 10;
+
+                            const groundAheadFound = platforms.children.entries.some(platform =>
+                                platform.active && platform.body.hitTest(enemy.x + checkXOffset, enemy.y + checkYOffset)
+                            );
+
+                            if (player.x < enemy.x) { // Player is to the left
+                                if (groundAheadFound) { // Only move if ground is ahead
+                                    enemy.setVelocityX(-enemySpeed);
+                                    enemy.setFlipX(true);
+                                } else {
+                                    enemy.setVelocityX(0); // Stop if no ground
+                                    enemy.setFlipX(true); // Still face player
+                                }
+                            } else { // Player is to the right
+                                if (groundAheadFound) { // Only move if ground is ahead
+                                    enemy.setVelocityX(enemySpeed);
+                                    enemy.setFlipX(false);
+                                } else {
+                                    enemy.setVelocityX(0); // Stop if no ground
+                                    enemy.setFlipX(false); // Still face player
+                                }
+                            }
+
+                            // Lógica de ataque do inimigo
+                            if (distanceToPlayer < ENEMY_ATTACK_RANGE) { // Inimigo na distância de ataque
+                                console.log(`[Inimigo] Em range de ataque. Distância: ${distanceToPlayer.toFixed(2)}`);
+                                console.log(`[Inimigo] Tempo atual: ${currentTime}, Último ataque: ${enemy.lastAttackTime}, Cooldown: ${ENEMY_ATTACK_COOLDOWN}`);
+                                console.log(`[Inimigo] Energia: ${enemy.currentEnergy.toFixed(2)}, Custo Ataque: ${ENEMY_ATTACK_DAMAGE}`);
+
+                                if (currentTime > enemy.lastAttackTime + ENEMY_ATTACK_COOLDOWN) {
+                                    console.log(`[Inimigo] Cooldown liberado.`);
+                                    if (enemy.currentEnergy >= ENEMY_ATTACK_DAMAGE) {
+                                        console.log(`[Inimigo] Atacando jogador!`);
+                                        enemy.lastAttackTime = currentTime;
+                                        enemy.currentEnergy -= ENEMY_ATTACK_DAMAGE; // Consome energia do inimigo
+                                        enemy.currentEnergy = Phaser.Math.Clamp(enemy.currentEnergy, 0, ENEMY_ENERGY);
+
+                                        takeDamage(this, ENEMY_ATTACK_DAMAGE); // Inimigo ataca o jogador (Passa 'this' - a cena)
+
+                                        // Feedback visual de ataque do inimigo
+                                        enemy.setTint(0xcccccc); // Tonalidade cinza
+                                        this.time.delayedCall(100, () => {
+                                            enemy.clearTint();
+                                        }, [], this);
+                                    } else {
+                                        console.log(`[Inimigo] Cooldown liberado, mas sem energia suficiente para atacar! Energia: ${enemy.currentEnergy.toFixed(2)}`);
+                                    }
+                                } else {
+                                    console.log(`[Inimigo] Ainda em cooldown. Restante: ${(enemy.lastAttackTime + ENEMY_ATTACK_COOLDOWN - currentTime).toFixed(0)}ms`);
+                                }
+                            }
+                        } else {
+                            // Patrulha normal se o jogador estiver fora do alcance de perseguição
+                            let checkX = enemy.x;
+                            if (enemy.body.velocity.x > 0) {
+                                checkX += enemy.displayWidth / 2 + 5;
+                            } else if (enemy.body.velocity.x < 0) {
+                                checkX -= enemy.displayWidth / 2 + 5;
+                            }
+
+                            const groundFound = platforms.children.entries.some(platform =>
+                                platform.active && platform.body.hitTest(checkX, enemy.y + enemy.displayHeight / 2 + 10)
+                            );
+
+                            if (!groundFound || enemy.body.blocked.left || enemy.body.blocked.right) {
+                                enemy.setVelocityX(-enemy.body.velocity.x);
+                                enemy.setFlipX(enemy.body.velocity.x < 0);
+                            } else if (enemy.body.velocity.x === 0) {
+                                enemy.setVelocityX(Phaser.Math.RND.pick([-50, 50]));
+                                enemy.setFlipX(enemy.body.velocity.x < 0);
+                            }
+                        }
+
+                        // Recarga de energia do inimigo (NOVO)
+                        enemy.currentEnergy += (ENEMY_RECHARGE_RATE / 60); // Recarga gradual por frame (60 FPS)
+                        enemy.currentEnergy = Phaser.Math.Clamp(enemy.currentEnergy, 0, ENEMY_ENERGY);
+
+                    }, this); // Adiciona 'this' como contexto para a função de callback
+
+                    // Resets isAttacking flag after a short period
+                    if (isAttacking && time > lastAttackTime + 200) { // Attack animation/state duration
+                        isAttacking = false;
+                        // Returns to idle animation after attack, if not jumping or moving
+                        if (player.body.blocked.down && player.body.velocity.x === 0) {
+                             player.anims.play('turn');
+                        } else if (player.body.velocity.x < 0) { // If moving left
+                             player.anims.play('left', true);
+                        } else if (player.body.velocity.x > 0) { // If moving right
+                             player.anims.play('right', true);
+                        } else if (!player.body.blocked.down) { // If airborne
+                            if (player.body.velocity.y < 0) {
+                                player.anims.play('jump');
+                            } else {
+                                player.anims.play('airborne');
+                            }
+                        }
+                    }
+                }
+
+                /**
+                 * Generates a segment of the game level (platforms and coins).
+                 * @param {Phaser.Scene} scene - The current Phaser scene.
+                 * @param {Phaser.Physics.Arcade.StaticGroup} platformsGroup - The platforms group.
+                 * @param {Phaser.Physics.Arcade.Group} coinsGroup - The coins group.
+                 * @param {number} startX - The starting X coordinate to begin generation.
+                 */
+                function generateLevel(scene, platformsGroup, coinsGroup, startX = 0) {
+                    let currentX = startX;
+                    const groundBottomY = gameHeight; // Absolute Y coordinate for the ground
+                    const generationLength = gameWidth * 2; // Generates 2 screen widths at a time
+                    const endX = startX + generationLength;
+
+                    // Ensures a solid platform at the beginning for player respawn
+                    if (startX === 0) {
+                        const playerStartX = 100;
+                        const requiredInitialGroundEnd = playerStartX + 300;
+                        let initialGroundPlaced = 0;
+                        while (initialGroundPlaced < requiredInitialGroundEnd) {
+                            const groundPiece = platformsGroup.create(initialGroundPlaced, 0, 'ground').setOrigin(0, 0);
+                            groundPiece.setScale(TILE_SIZE / groundPiece.width);
+                            groundPiece.y = groundBottomY - groundPiece.displayHeight;
+                            groundPiece.refreshBody();
+                            initialGroundPlaced += TILE_SIZE;
+                        }
+                        currentX = initialGroundPlaced;
+                    }
+
+                    // Segment generation loop
+                    while (currentX < endX) {
+                        const segmentType = Phaser.Math.RND.between(0, 3); // Segment types: continuous ground, elevated platform, hole, small platform
+                        let segmentWidth = 0;
+
+                        if (segmentType === 0) { // Continuous ground
+                            segmentWidth = Phaser.Math.RND.between(5, 15);
+                            for (let i = 0; i < segmentWidth; i++) {
+                                const groundPiece = platformsGroup.create(currentX, 0, 'ground').setOrigin(0, 0);
+                                groundPiece.setScale(TILE_SIZE / groundPiece.width);
+                                groundPiece.y = groundBottomY - groundPiece.displayHeight;
+                                groundPiece.refreshBody();
+
+                                // Chance to generate a coin on the ground
+                                if (Phaser.Math.RND.between(0, 100) < 30) {
+                                    const coin = coinsGroup.create(currentX + TILE_SIZE / 2, groundPiece.y - TILE_SIZE, 'coin');
+                                    coin.setScale(0.1);
+                                    coin.body.setAllowGravity(false);
+                                    coin.body.setImmovable(true);
+                                }
+                                currentX += TILE_SIZE;
+                            }
+                        } else if (segmentType === 1) { // Elevated platform
+                            segmentWidth = Phaser.Math.RND.between(3, 8);
+                            const platformHeightOffset = Phaser.Math.RND.between(80, 200);
+                            const gapBefore = Phaser.Math.RND.between(1, 2);
+                            currentX += TILE_SIZE * gapBefore;
+                            for (let i = 0; i < segmentWidth; i++) {
+                                const platformPiece = platformsGroup.create(currentX, 0, 'platform').setOrigin(0, 0);
+                                platformPiece.setScale(TILE_SIZE / platformPiece.width);
+                                platformPiece.y = groundBottomY - platformPiece.displayHeight - platformHeightOffset;
+                                platformPiece.refreshBody();
+
+                                // Chance to generate a coin on the platform
+                                if (Phaser.Math.RND.between(0, 100) < 40) {
+                                    const coin = coinsGroup.create(currentX + TILE_SIZE / 2, platformPiece.y - TILE_SIZE, 'coin');
+                                    coin.setScale(0.1);
+                                    coin.body.setAllowGravity(false);
+                                    coin.body.setImmovable(true);
+                                }
+                                currentX += TILE_SIZE;
+                            }
+                        } else if (segmentType === 2) { // Hole
+                            const gapSize = Phaser.Math.RND.between(2, 5);
+                            currentX += TILE_SIZE * gapSize;
+                        } else if (segmentType === 3) { // Small elevated platform
+                            segmentWidth = Phaser.Math.RND.between(1, 3);
+                            const platformHeightOffset = Phaser.Math.RND.between(100, 250);
+                            const gapBefore = Phaser.Math.RND.between(1, 3);
+                            currentX += TILE_SIZE * gapBefore;
+                            for (let i = 0; i < segmentWidth; i++) {
+                                const smallPlatform = platformsGroup.create(currentX, 0, 'platform').setOrigin(0, 0);
+                                smallPlatform.setScale(TILE_SIZE / smallPlatform.width);
+                                smallPlatform.y = groundBottomY - smallPlatform.displayHeight - platformHeightOffset;
+                                smallPlatform.refreshBody();
+
+                                // Chance to generate a coin on the small platform
+                                if (Phaser.Math.RND.between(0, 100) < 50) {
+                                    const coin = coinsGroup.create(currentX + TILE_SIZE / 2, smallPlatform.y - TILE_SIZE, 'coin');
+                                    coin.setScale(0.1);
+                                    coin.body.setAllowGravity(false);
+                                    coin.body.setImmovable(true);
+                                }
+                                currentX += TILE_SIZE;
+                            }
+                        }
+                    }
+                    lastGeneratedX = currentX; // Updates the last generated X coordinate
+                }
+
+                /**
+                 * Handles player collision with an enemy (NEW: Stomp on enemy).
+                 * @param {Phaser.Physics.Arcade.Sprite} player - The player object.
+                 * @param {Phaser.Physics.Arcade.Sprite} enemy - The enemy object.
+                 */
+                function hitEnemy(player, enemy) {
+                    // Checks if player is stomping on the enemy (player falling and hitting enemy from above)
+                    if (player.body.velocity.y > 0 && player.body.bottom <= enemy.body.y + 10) {
+                        // Player stomped on the enemy
+                        player.setVelocityY(-400); // Makes the player jump higher
+                        score += 10; // Adds points for stomping on the enemy
+                        enemy.currentHealth -= 25; // Enemy takes damage when stomped
+                        updateEnemyHealthBar(this, enemy); // Passes 'this' (the scene) as argument
+
+                        if (enemy.currentHealth <= 0) {
+                            enemy.healthBar.destroy(); // Removes enemy health bar
+                            enemy.destroy();
+                            score += 50; // Adds extra points for killing the enemy
+                        } else {
+                            // Visual feedback that the enemy was hit
+                            enemy.setTint(0xff6666); // Light red tint
+                            this.time.delayedCall(150, () => {
+                                enemy.clearTint();
+                            }, [], this);
+                        }
+                    }
+                    // Enemy attack collision is handled in the game's update function, in the enemy loop
+                }
+
+                /**
+                 * Handles projectile collision with an enemy (NEW).
+                 * @param {Phaser.Physics.Arcade.Sprite} projectile - The projectile object.
+                 * @param {Phaser.Physics.Arcade.Sprite} enemy - The enemy object.
+                 */
+                function hitEnemyByProjectile(projectile, enemy) {
+                    projectile.destroy(); // Destroys the projectile upon hitting the enemy
+                    enemy.currentHealth -= PROJECTILE_DAMAGE; // Reduces enemy health by projectile damage
+                    updateEnemyHealthBar(this, enemy);
+
+                    if (enemy.currentHealth <= 0) {
+                        enemy.healthBar.destroy(); // Removes enemy health bar
+                        enemy.destroy();
+                        score += 50; // Adds points for destroying an enemy
+                    } else {
+                        // Visual feedback that the enemy was hit
+                        enemy.setTint(0xff6666); // Light red tint
+                        this.time.delayedCall(150, () => {
+                            enemy.clearTint();
+                        }, [], this);
+                    }
+                }
+
+                /**
+                 * Handles player collecting coins.
+                 * @param {Phaser.Physics.Arcade.Sprite} player - The player object.
+                 * @param {Phaser.Physics.Arcade.Sprite} coin - The coin object.
+                 */
+                function collectCoin(player, coin) {
+                    coin.disableBody(true, true); // Removes the coin
+                    score += 10; // Increases score
+                    coinsCollected++; // Increments coin count
+                    updateCoinsCollectedText(); // Updates HTML coin count text
+                    this.sound.play('coinSound'); // Plays coin sound
+                }
+
+                /**
+                 * Deals damage to the player and checks if they lose a life. (NEW)
+                 * @param {Phaser.Scene} scene - The current Phaser scene.
+                 * @param {number} damageAmount - The amount of damage to apply.
+                 */
+                function takeDamage(scene, damageAmount) {
+                    const currentTime = scene.time.now;
+                    if (currentTime < lastPlayerHitTime + PLAYER_HIT_COOLDOWN || isRespawning || gameOver) {
+                        console.log("takeDamage: Player invulnerable (cooldown, respawn or game over).");
+                        return;
+                    }
+
+                    console.log(`takeDamage: Player taking ${damageAmount} damage. Current Health: ${currentHealth}`);
+                    currentHealth -= damageAmount;
+                    currentHealth = Phaser.Math.Clamp(currentHealth, 0, MAX_HEALTH);
+                    updateHealthBar(); // Updates HTML health bar
+                    lastPlayerHitTime = currentTime; // Ensures this is updated after damage
+
+                    player.setTint(0xff0000); // Visual feedback: player turns red
+                    scene.time.delayedCall(300, () => {
+                        player.clearTint();
+                    }, [], scene);
+
+                    if (currentHealth <= 0) {
+                        console.log("takeDamage: Player health dropped to 0 or less. Calling loseLife.");
+                        loseLife(scene); // Loses a life if health reaches zero
+                    }
+                }
+
+                /**
+                 * Handles player losing a life.
+                 * @param {Phaser.Scene} scene - The current Phaser scene.
+                 */
+                function loseLife(scene) {
+                    // Important: Prevents re-entry if already in respawn process or game has ended.
+                    if (isRespawning || gameOver) {
+                        console.log("LoseLife: Re-entry or game already ended.");
+                        return;
+                    }
+
+                    isRespawning = true;
+                    console.log("LoseLife: Respawn process started. isRespawning = true.");
+
+                    // Clears any existing respawn timer to prevent conflicting callbacks
+                    if (respawnTimer) {
+                        respawnTimer.remove(false);
+                        respawnTimer = null;
+                        console.log("LoseLife: Previous respawn timer cleared.");
+                    }
+                    if (energyRechargeEvent) { // Pauses energy recharge during respawn
+                        energyRechargeEvent.paused = true;
+                        console.log("LoseLife: Energy recharge event paused.");
+                    }
+
+
+                    lives--; // Decrements a life
+                    updateLivesText(); // Updates HTML lives text
+
+                    // Immediately clears all enemies to prevent instant death
+                    enemies.children.each(enemy => { // Ensures enemy health bars are also destroyed
+                        if (enemy.healthBar) enemy.healthBar.destroy();
+                        enemy.destroy();
+                    });
+                    enemies.clear(true, true);
+                    console.log("LoseLife: Enemies cleared.");
+
+                    // Handles Game Over condition
+                    if (lives <= 0) {
+                        endGame(scene, false); // Calls endGame for Game Over
+                        console.log("LoseLife: Game Over condition reached.");
+                        return; // Exits here, no need for respawn
+                    }
+
+                    // Respawns player near current camera position, on a safe platform
+                    const playerRespawnX = scene.cameras.main.scrollX + (gameWidth / 4);
+                    let respawnY = gameHeight - TILE_SIZE - (player.displayHeight / 2);
+
+                    let platformFoundForRespawn = false;
+
+                    // Tries to find a platform near the respawn X to place the player
+                    platforms.children.entries.some(p => {
+                        if (p.active && p.x <= playerRespawnX + TILE_SIZE && p.x + p.displayWidth >= playerRespawnX - TILE_SIZE &&
+                            p.y >= (gameHeight - p.displayHeight - 200) && p.y <= (gameHeight - p.displayHeight + 20)) {
+
+                            respawnY = p.y - (player.displayHeight / 2);
+                            platformFoundForRespawn = true;
+                            return true;
+                        }
+                        return false;
+                    });
+
+                    if (!platformFoundForRespawn) {
+                        console.warn("LoseLife: No suitable platform found near respawn X. Forcing ground generation.");
+                        const tempGround = platforms.create(playerRespawnX - (TILE_SIZE / 2), 0, 'ground').setOrigin(0,0);
+                        tempGround.setScale(TILE_SIZE / tempGround.width);
+                        tempGround.y = gameHeight - tempGround.displayHeight;
+                        tempGround.refreshBody();
+                        respawnY = tempGround.y - (player.displayHeight / 2);
+                    }
+
+                    // Resets player's visual and physical state immediately
+                    player.setPosition(playerRespawnX, respawnY);
+                    player.setVelocity(0, 0);
+                    player.setAlpha(0.5); // Half opacity for invulnerability
+                    player.setTint(0xff0000); // Red tint for invulnerability
+                    currentEnergy = MAX_ENERGY; // Recharges energy on respawn
+                    currentHealth = MAX_HEALTH; // Recharges player health on respawn (NEW)
+                    currentProjectiles = INITIAL_PROJECTILES; // Recharges projectiles on respawn (NEW)
+                    updateEnergyBar(); // Updates HTML energy bar
+                    updateHealthBar(); // Updates HTML health bar (NEW)
+                    updateProjectilesText(); // Updates HTML projectile count (NEW)
+                    console.log(`LoseLife: Jogador posicionado em (${playerRespawnX}, ${respawnY}), velocidade reiniciada.`);
+
+                    // Temporarily disables gravity and collisions to prevent falls on respawn
+                    player.body.setAllowGravity(false);
+                    player.body.setVelocityY(0);
+                    player.body.enable = false; // Completely disables the physics body
+                    console.log("LoseLife: Corpo do jogador desativado.");
+
+                    // Resets input flags and virtual button visual state
+                    isALeftPressed = false;
+                    isDRightPressed = false;
+                    buttonLeft.classList.remove('active');
+                    buttonRight.classList.remove('active');
+                    buttonFour.classList.remove('active');
+                    buttonTwo.classList.remove('active'); // Also resets attack button
+                    buttonThree.classList.remove('active'); // Also resets projectile button (NEW)
+
+                    // Ensures player texture is reset to 'player' after respawn
+                    player.setTexture('player');
+                    isPlayerJumping = false; // Resets jump state on respawn
+
+                    // Schedules physics reactivation and other states
+                    respawnTimer = scene.time.delayedCall(1500, () => {
+                        console.log("Callback do temporizador de respawn: Acionado.");
+
+                        // Ensures these settings are applied only if the player is still alive
+                        if (!gameOver) {
+                            player.setAlpha(1); // Restores full opacity
+                            player.clearTint(); // Removes red tint
+
+                            // Important: Use player.body.reset() for a comprehensive reset
+                            player.body.reset(playerRespawnX, respawnY);
+                            player.body.setAllowGravity(true); // Reactivates gravity
+                            // If player is moving, play walking animation
+                            if (player.body.velocity.x !== 0) {
+                                if (player.body.velocity.x < 0) {
+                                    player.anims.play('left', true);
+                                } else {
+                                    player.anims.play('right', true);
+                                }
+                            } else {
+                                player.anims.play('turn'); // Sets to idle animation
+                            }
+
+
+                            if (player.body.allowGravity && !player.body.onFloor()) {
+                                player.setVelocityY(50);
+                                console.log("Callback do temporizador de respawn: Empurrando o jogador para baixo.");
+                            }
+
+                            player.body.enable = true; // Explicitly reactivates physics body - critical!
+                            console.log("Callback do temporizador de respawn: Corpo do jogador reativado.");
+
+                            if (energyRechargeEvent) { // Resumes energy recharge
+                                energyRechargeEvent.paused = false;
+                                console.log("Callback do temporizador de respawn: Evento de recarga de energia retomado.");
+                            }
+                        } else {
+                             // If game ended while timer was running, ensures player body remains disabled
+                             player.body.enable = false;
+                             console.log("Callback do temporizador de respawn: Fim de Jogo. Corpo do jogador permanece desativado.");
+                        }
+
+                        console.log("Callback do temporizador de respawn: Geração de inimigos tratada pelo temporizador principal.");
+
+                        isRespawning = false; // Resets flag when respawn process is complete
+                        respawnTimer = null; // Clears timer reference
+                        console.log("Callback do temporizador de respawn: isRespawning = false. Temporizador limpo.");
+                    }, [], scene);
+                }
+
+                /**
+                 * Draws and updates the health bar of a specific enemy.
+                 * @param {Phaser.Scene} scene - The current Phaser scene.
+                 * @param {Phaser.Physics.Arcade.Sprite} enemy - The enemy object.
+                 */
+                function updateEnemyHealthBar(scene, enemy) {
+                    if (!enemy.healthBar) {
+                        // Creates enemy health bar if it doesn't exist yet
+                        enemy.healthBar = scene.add.graphics();
+                    }
+                    enemy.healthBar.clear();
+
+                    const barWidth = enemy.displayWidth * 0.8; // Bar width based on enemy
+                    const barHeight = 5; // Small height
+                    const barYOffset = enemy.displayHeight / 2 + 10; // Position above enemy
+
+                    const barX = enemy.x - barWidth / 2;
+                    const barY = enemy.y - barYOffset;
+
+                    // Draws the bar background (border)
+                    enemy.healthBar.lineStyle(1, 0x000000); // Black border
+                    enemy.healthBar.strokeRect(barX, barY, barWidth, barHeight);
+
+                    // Draws the bar fill (current health)
+                    const fillWidth = (enemy.currentHealth / ENEMY_HEALTH) * barWidth;
+                    enemy.healthBar.fillStyle(0xff0000); // Red color
+                    enemy.healthBar.fillRect(barX, barY, fillWidth, barHeight);
+                }
+
+
+                /**
+                 * Spawns a new enemy at a random position to the right of the camera.
+                 * @param {Phaser.Scene} scene - The current Phaser scene.
+                 */
+                function spawnEnemy(scene) {
+                    // Defines a valid range to spawn enemies (outside current camera view, to the right)
+                    let minSpawnX = scene.cameras.main.scrollX + scene.cameras.main.width + 100;
+                    let maxSpawnX = scene.cameras.main.scrollX + scene.cameras.main.width + 500;
+
+                    maxSpawnX = Math.min(maxSpawnX, WORLD_WIDTH - 50);
+
+                    if (minSpawnX >= maxSpawnX) {
+                        console.warn("Enemy spawn area too small or invalid.");
+                        return;
+                    }
+
+                    let x = Phaser.Math.RND.between(minSpawnX, maxSpawnX);
+                    const groundY = gameHeight - TILE_SIZE;
+
+                    let foundPlatform = false;
+                    platforms.children.each(function(platform) {
+                        if (platform.active && platform.x >= minSpawnX - platform.displayWidth && platform.x < maxSpawnX + platform.displayWidth) {
+                            if (x >= platform.x && x <= platform.x + platform.displayWidth) {
+                                if (platform.y >= (gameHeight - platform.displayHeight - 250) && platform.y <= (gameHeight - platform.displayHeight + 50)) {
+                                    const enemy = enemies.create(x, platform.y - 50, 'enemy');
+                                    enemy.setBounce(0.2);
+                                    enemy.setCollideWorldBounds(false);
+                                    enemy.setVelocityX(Phaser.Math.RND.pick([-50, 50]));
+                                    enemy.setScale(0.1);
+                                    foundPlatform = true;
+
+                                    // Sets enemy health and energy properties
+                                    enemy.maxHealth = ENEMY_HEALTH;
+                                    enemy.currentHealth = ENEMY_HEALTH;
+                                    enemy.maxEnergy = ENEMY_ENERGY;
+                                    enemy.currentEnergy = ENEMY_ENERGY;
+                                    enemy.attackDamage = ENEMY_ATTACK_DAMAGE;
+                                    enemy.attackCooldown = ENEMY_ATTACK_COOLDOWN;
+                                    enemy.lastAttackTime = 0;
+                                    enemy.healthBar = scene.add.graphics(); // Creates the graphic object for the health bar
+
+                                    updateEnemyHealthBar(scene, enemy); // Draws the initial health bar
+                                    return;
+                                }
+                            }
+                        }
+                    });
+
+                    if (!foundPlatform) {
+                        const enemy = enemies.create(x, gameHeight - TILE_SIZE - 50, 'enemy');
+                        enemy.setBounce(0.2);
+                        enemy.setCollideWorldBounds(false);
+                        enemy.setVelocityX(Phaser.Math.RND.pick([-50, 50]));
+                        enemy.setScale(0.1);
+
+                        // Sets enemy health and energy properties
+                        enemy.maxHealth = ENEMY_HEALTH;
+                        enemy.currentHealth = ENEMY_HEALTH;
+                        enemy.maxEnergy = ENEMY_ENERGY;
+                        enemy.currentEnergy = ENEMY_ENERGY;
+                        enemy.attackDamage = ENEMY_ATTACK_DAMAGE;
+                        enemy.attackCooldown = ENEMY_ATTACK_COOLDOWN;
+                        enemy.lastAttackTime = 0;
+                        enemy.healthBar = scene.add.graphics(); // Creates the graphic object for the health bar
+
+                        updateEnemyHealthBar(scene, enemy); // Draws the initial health bar
+                    }
+                }
+
+                /**
+                 * Ends the game and displays the Game Over/Win screen.
+                 * @param {boolean} didWin - True if the player won, false otherwise.
+                 */
+                function endGame(scene, didWin) {
+                    gameOver = true;
+                    scene.physics.pause(); // Pauses game physics
+                    player.setTint(didWin ? 0x00ff00 : 0xff0000); // Green tint for win, red for lose
+
+                    if (respawnTimer) {
+                        respawnTimer.remove(false);
+                        respawnTimer = null;
+                    }
+                    if (enemySpawnTimer) {
+                        enemySpawnTimer.remove(false);
+                        enemySpawnTimer = null;
+                    }
+                    if (energyRechargeEvent) { // Stops energy recharge
+                        energyRechargeEvent.remove(false);
+                        energyRechargeEvent = null;
+                    }
+                    uiInfoCard.style.display = 'none'; // Hides the UI info card
+
+
+                    let message = didWin ? 'Você Venceu!' : 'Game Over!';
+                    let finalScore = `Pontuação Final: ${score}`; // Re-added final score display
+
+                    if (scene.gameOverText) scene.gameOverText.destroy();
+                    if (scene.finalScoreText) scene.finalScoreText.destroy(); // Re-added
+                    if (scene.restartButton) scene.restartButton.destroy();
+
+                    scene.gameOverText = scene.add.text(scene.cameras.main.scrollX + gameWidth / 2, gameHeight / 2 - 50, message, { fontSize: '64px', fill: '#000' }).setOrigin(0.5).setScrollFactor(0);
+                    scene.finalScoreText = scene.add.text(scene.cameras.main.scrollX + gameWidth / 2, gameHeight / 2, finalScore, { fontSize: '48px', fill: '#000' }).setOrigin(0.5).setScrollFactor(0); // Re-added
+
+                    // Adds a "Restart" button
+                    scene.restartButton = scene.add.text(scene.cameras.main.scrollX + gameWidth / 2, gameHeight / 2 + 100, 'Reiniciar', { // Adjusted Y position
+                        fontSize: '40px',
+                        fill: '#000',
+                        backgroundColor: '#fff',
+                        padding: { x: 20, y: 10 }
+                    })
+                    .setOrigin(0.5)
+                    .setInteractive()
+                    .setScrollFactor(0);
+
+
+                    scene.restartButton.on('pointerdown', () => {
+                        scene.restartButton.destroy();
+                        scene.gameOverText.destroy();
+                        scene.finalScoreText.destroy(); // Re-added
+                        restartGame(scene); // Calls restart function
+                    });
+                }
+
+                /**
+                 * Restarts the entire game to its initial state.
+                 * @param {Phaser.Scene} scene - The current Phaser scene.
+                 */
+                function restartGame(scene) {
+                    console.log("Reiniciando o jogo...");
+                    // Resets all global game variables to initial state
+                    score = 0; // Re-added score reset
+                    coinsCollected = 0; // Re-added coinsCollected reset
+                    lives = 5;
+                    gameOver = false;
+                    isRespawning = false;
+                    currentEnergy = MAX_ENERGY; // Resets energy to max
+                    currentHealth = MAX_HEALTH; // Resets health to max (NEW)
+                    lastPlayerHitTime = 0; // Resets hit time (NEW)
+                    lastGeneratedX = 0;
+                    isAttacking = false; // Resets attack flag
+                    lastAttackTime = 0; // Resets last attack time
+                    isPlayerJumping = false; // Resets jump state
+                    currentProjectiles = INITIAL_PROJECTILES; // Resets projectiles (NEW)
+
+
+                    // Stops all existing timers
+                    if (respawnTimer) {
+                        respawnTimer.remove(false);
+                        respawnTimer = null;
+                    }
+                    if (enemySpawnTimer) {
+                        enemySpawnTimer.remove(false);
+                        enemySpawnTimer = null;
+                    }
+                    if (energyRechargeEvent) { // Stops and recreates energy recharge event
+                        energyRechargeEvent.remove(false);
+                        energyRechargeEvent = null;
+                    }
+
+
+                    // Clears all dynamic game objects
+                    platforms.children.each(child => child.destroy());
+                    enemies.children.each(child => { // Ensures enemy health bars are also destroyed
+                        if (child.healthBar) child.healthBar.destroy();
+                        child.destroy();
+                    });
+                    coins.children.each(child => child.destroy());
+                    projectiles.children.each(child => child.destroy()); // Clears projectile group (NEW)
+                    platforms.clear(true, true);
+                    enemies.clear(true, true);
+                    coins.clear(true, true);
+                    projectiles.clear(true, true); // Clears projectile group (NEW)
+
+                    // Resets player state
+                    const playerStartX = 100;
+                    player.body.enable = true;
+                    player.body.setAllowGravity(true);
+                    player.clearTint();
+                    player.setAlpha(1);
+                    player.setPosition(playerStartX, 0);
+                    player.setTexture('player'); // Ensures player starts with normal texture
+
+                    scene.physics.resume(); // Resumes physics simulation
+
+                    // Re-initialize HTML UI elements
+                    updateHealthBar();
+                    updateEnergyBar();
+                    updateCoinsCollectedText();
+                    updateProjectilesText();
+                    updateLivesText();
+
+                    scene.scene.restart(); // Restarts the scene to reinitialize the game world and UI
+                }
+
+                // Handles window resizing
+                window.addEventListener('resize', () => {
+                    if (gameInstance) {
+                        updateGameDimensions();
+
+                        gameInstance.scale.resize(gameWidth, gameHeight);
+                        gameInstance.renderer.resize(gameWidth, gameHeight);
+                        gameInstance.cameras.main.setSize(gameWidth, gameHeight);
+
+                        // Repositions the player
+                        if (player) {
+                            const newPlayerX = gameInstance.cameras.main.scrollX + (player.x - gameInstance.cameras.main.scrollX) * (gameWidth / gameInstance.scale.width);
+                            const targetPlatform = platforms.children.entries.find(p =>
+                                p.active && p.x <= newPlayerX && p.x + p.displayWidth >= newPlayerX &&
+                                p.y >= (gameHeight - p.displayHeight - 200) && p.y <= (gameHeight - p.displayHeight + 20)
+                            );
+                            if (targetPlatform) {
+                                player.setPosition(newPlayerX, targetPlatform.y - (player.displayHeight / 2));
+                            } else {
+                                player.setPosition(newPlayerX, gameHeight - (player.displayHeight / 2));
+                            }
+                        }
+
+                        // Update HTML UI bars and texts
+                        updateHealthBar();
+                        updateEnergyBar();
+                        updateCoinsCollectedText();
+                        updateProjectilesText();
+                        updateLivesText();
+
+                        updateJumpVelocity(); // Recalculates jump velocity
+                    }
+                });
+            } else {
+                // If game instance already exists, just restart the scene
+                gameInstance.scene.keys.default.scene.restart();
+            }
+        }
+
+        // Adds event listeners for virtual movement buttons
+        buttonLeft.addEventListener('pointerdown', () => {
+            isALeftPressed = true;
+            buttonLeft.classList.add('active');
+        });
+        buttonLeft.addEventListener('pointerup', () => {
+            isALeftPressed = false;
+            buttonLeft.classList.remove('active');
+        });
+        buttonLeft.addEventListener('pointerleave', () => { // Deactivates on leaving button
+            isALeftPressed = false;
+            buttonLeft.classList.remove('active');
+        });
+
+        buttonRight.addEventListener('pointerdown', () => {
+            isDRightPressed = true;
+            buttonRight.classList.add('active');
+        });
+        buttonRight.addEventListener('pointerup', () => {
+            isDRightPressed = false;
+            buttonRight.classList.remove('active');
+        });
+        buttonRight.addEventListener('pointerleave', () => { // Deactivates on leaving button
+            isDRightPressed = false;
+            buttonRight.classList.remove('active');
+        });
+
+        // Jump button logic ('K'): Uses `pointerdown` event
+        buttonFour.addEventListener('pointerdown', () => {
+            buttonFour.classList.add('active'); // Visual activation effect
+            if (gameInstance && gameInstance.scene.keys.default) {
+                gameInstance.scene.keys.default.handleJumpInput(); // Calls jump function in Phaser
+            }
+        });
+        buttonFour.addEventListener('pointerup', () => {
+            buttonFour.classList.remove('active');
+        });
+        buttonFour.addEventListener('pointerleave', () => {
+            buttonFour.classList.remove('active');
+        });
+
+        // Event listener for virtual 'J' button (melee attack)
+        buttonTwo.addEventListener('pointerdown', () => {
+            buttonTwo.classList.add('active'); // Visual activation effect
+            if (gameInstance && gameInstance.scene.keys.default) {
+                gameInstance.scene.keys.default.handleAttackInput(); // Calls attack function in Phaser
+            }
+        });
+        buttonTwo.addEventListener('pointerup', () => {
+            buttonTwo.classList.remove('active');
+        });
+        buttonTwo.addEventListener('pointerleave', () => {
+            buttonTwo.classList.remove('active');
+        });
+
+        // NEW: Event listener for virtual 'L' button (projectile)
+        buttonThree.addEventListener('pointerdown', () => {
+            buttonThree.classList.add('active'); // Visual activation effect
+            if (gameInstance && gameInstance.scene.keys.default) {
+                gameInstance.scene.keys.default.handleProjectileShoot();
+            }
+        });
+        buttonThree.addEventListener('pointerup', () => {
+            buttonThree.classList.remove('active');
+        });
+        buttonThree.addEventListener('pointerleave', () => {
+            buttonThree.classList.remove('active');
+        });
+
+        // Adds event listeners for physical keyboard keys
+        document.addEventListener('keydown', (event) => {
+            let targetButton = null;
+            switch (event.key.toUpperCase()) {
+                case 'A':
+                    isALeftPressed = true;
+                    targetButton = buttonLeft;
+                    break;
+                case 'D':
+                    isDRightPressed = true;
+                    targetButton = buttonRight;
+                    break;
+                case 'K':
+                    // Jump logic: Uses `keydown` event and checks `event.repeat` to prevent continuous jumps
+                    if (gameInstance && gameInstance.scene.keys.default && event.repeat === false) {
+                        gameInstance.scene.keys.default.handleJumpInput();
+                    }
+                    targetButton = buttonFour;
+                    break;
+                case 'W':
+                    targetButton = buttonUp;
+                    break;
+                case 'S':
+                    targetButton = buttonDown;
+                    break;
+                case 'I':
+                    targetButton = buttonOne;
+                    break;
+                case 'J': // 'J' key for melee attack
+                    if (gameInstance && gameInstance.scene.keys.default && event.repeat === false) {
+                        gameInstance.scene.keys.default.handleAttackInput();
+                    }
+                    targetButton = buttonTwo; // Associates with buttonTwo for visual feedback
+                    break;
+                case 'L': // NEW: 'L' key for projectile firing
+                    if (gameInstance && gameInstance.scene.keys.default && event.repeat === false) {
+                        gameInstance.scene.keys.default.handleProjectileShoot();
+                    }
+                    targetButton = buttonThree; // Associates with buttonThree for visual feedback
+                    break;
+            }
+
+            if (targetButton) {
+                targetButton.classList.add('active');
+            }
+        });
+
+        document.addEventListener('keyup', (event) => {
+            let targetButton = null;
+            switch (event.key.toUpperCase()) {
+                case 'A':
+                    isALeftPressed = false;
+                    targetButton = buttonLeft;
+                    break;
+                case 'D':
+                    isDRightPressed = false;
+                    targetButton = buttonRight;
+                    break;
+                case 'K':
+                    targetButton = buttonFour;
+                    break;
+                case 'W':
+                    targetButton = buttonUp;
+                    break;
+                case 'S':
+                    targetButton = buttonDown;
+                    break;
+                case 'I':
+                    targetButton = buttonOne;
+                    break;
+                case 'J': // 'J' key for melee attack
+                    targetButton = buttonTwo; // Associates with buttonTwo for visual feedback
+                    break;
+                case 'L': // NEW: 'L' key for projectile firing
+                    targetButton = buttonThree; // Associates with buttonThree for visual feedback
+                    break;
+            }
+
+            if (targetButton) {
+                targetButton.classList.remove('active');
+            }
+        });
+
+        // Event listener for the "Start Game" button
+        startGameButton.addEventListener('click', startGame);
+
+        // Event listener for the "Back to Menu" button
+        backToMenuButton.addEventListener('click', () => {
+            if (gameInstance && gameInstance.scene.keys.default) {
+                gameInstance.scene.keys.default.physics.pause(); // Pauses physics
+                gameInstance.scene.keys.default.gameOver = true; // Sets game over flag
+            }
+            areaTotal.classList.remove('visible'); // Hides game area
+            backToMenuButton.style.display = 'none'; // Hides "Back to Menu" button
+            mainMenu.classList.remove('hidden'); // Shows main menu
+            uiInfoCard.style.display = 'none'; // Hides the UI info card when returning to menu
+        });
+    </script>
+</body>
+</html>

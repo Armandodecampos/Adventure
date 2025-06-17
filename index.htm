@@ -329,6 +329,16 @@
         <source src="https://dl.dropbox.com/scl/fi/mnz8jwbc15g7bj3dna3cr/musicbox-23766.mp3?rlkey=m32pbszbtgh2goiuwa3h76csj&st=n2w8izhg&dl=0" type="audio/mpeg">
         O seu navegador não suporta áudio.
     </audio>
+    <!-- Novo elemento de áudio para o som do pulo -->
+    <audio id="jumpSound">
+        <source src="https://dl.dropbox.com/scl/fi/2x0e960j70f074d284w9s/jump-89947.mp3?rlkey=2397g4g3dkh875a97576q13c6&raw=1" type="audio/mpeg">
+        O seu navegador não suporta áudio.
+    </audio>
+    <!-- Novo elemento de áudio para o som de dano (NEW) -->
+    <audio id="damageSound">
+        <source src="https://dl.dropbox.com/scl/fi/i90epkn1xebjmn0z6ou6y/apanhando-1.mp3?rlkey=b3nd3yumxo8g56doeoke8m2fr&st=xwdkix1a&dl=0" type="audio/mpeg">
+        O seu navegador não suporta áudio.
+    </audio>
 
     <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
     <script>
@@ -633,8 +643,10 @@
                     this.load.image('enemy', 'https://dl.dropbox.com/scl/fi/o4j6bygwtz1fcs302b6ou/Super-Mario-Galaxy-PNG-Clipart-Background.png?rlkey=rhv6p0wfy2lziejo7tsvssv38&st=p7u36ecy&dl=0');
                     this.load.image('platform', 'https://dl.dropbox.com/scl/fi/23w7h3paiy6r2ovsnigki/madeira.jpg?rlkey=ktb7ajk53tfbnp1t6qcn60y71&st=079eveat&dl=0');
                     this.load.image('coin', 'https://dl.dropbox.com/scl/fi/bwyeqf266unuedp0wovj7/um-real.png?rlkey=x045r78nkme9lcjfsfao6pw74&st=dkzujkk7&dl=0');
-                    this.load.audio('attackSound', 'https://dl.dropbox.com/scl/fi/j9o5labmpbuodfw9xj458/sword-slash-and-swing-185432.mp3?rlkey=n505hf2w966w9kyorbg0kyh6v&raw=1'); // Attack sound
+                    this.load.audio('attackSound', 'https://dl.dropbox.com/scl/fi/yztyzdmxe0a0g9w1oqiid/batendo1.mp3?rlkey=rkyr7dt8o5tup9n0g025g4ain&st=yvjrkmwq&dl=0'); // Attack sound
                     this.load.audio('coinSound', 'https://dl.dropbox.com/scl/fi/t2ytb8tna408rz97yehvu/coin-257878.mp3?rlkey=f0dtj7h871wjq34alpluhmdsy&raw=1'); // Coin sound
+                    this.load.audio('jumpSound', 'https://dl.dropbox.com/scl/fi/ihirw1boenqu6zhzqdxpk/pulando.mp3?rlkey=k0dg1wc630wik8zeigwx1r99p&st=96zoutgk&dl=0'); // Jump sound
+                    this.load.audio('damageSound', 'https://dl.dropbox.com/scl/fi/i90epkn1xebjmn0z6ou6y/apanhando-1.mp3?rlkey=b3nd3yumxo8g56doeoke8m2fr&st=ki1yach5&dl=0'); // Damage sound (NEW)
                     this.load.image('player_jumping', 'https://dl.dropbox.com/scl/fi/fzgzz1ub7546kvx9yo3x2/boneco-pulando.png?rlkey=kqb63pcbqy20t6h326uvbhmgw&st=v2aj5s49&dl=0');
                     this.load.image('player_airborne', 'https://dl.dropbox.com/scl/fi/o1obk8fobf986fkzdnqrw/boneco-caindo.png?rlkey=5x4vhh3gxy3lq3qoy4rvbz1tn&st=3q8oygi8&dl=0');
                     // NEW IMAGE: Image for player's frontal attack (updated placeholder)
@@ -774,7 +786,7 @@
                     }, null, this);
                     this.physics.add.collider(enemies, platforms);
                     this.physics.add.collider(coins, platforms);
-                    this.physics.add.collider(player, enemies, hitEnemy, null, this);
+                    // this.physics.add.collider(player, enemies, hitEnemy, null, this); // Removed player-enemy collision
                     this.physics.add.overlap(player, coins, collectCoin, null, this);
                     this.physics.add.overlap(projectiles, enemies, hitEnemyByProjectile, null, this); // Projectile-enemy collision (NEW)
 
@@ -820,6 +832,9 @@
                             // Plays jump animation
                             player.anims.play('jump');
                             isPlayerJumping = true; // Sets flag to true when jump starts
+
+                            // Toca o som do pulo
+                            this.sound.play('jumpSound');
                         }
                     };
 
@@ -879,7 +894,7 @@
                                 enemy.currentHealth -= 25; // Player attack damage
                                 updateEnemyHealthBar(this, enemy); // Passes 'this' (the scene) as argument
                                 if (enemy.currentHealth <= 0) {
-                                    enemy.healthBar.destroy(); // Removes enemy health bar
+                                    if (enemy.healthBar) enemy.healthBar.destroy(); // Ensures health bar is destroyed
                                     enemy.destroy();
                                     score += 50; // Adds points for destroying an enemy (re-added)
                                 } else {
@@ -1032,7 +1047,7 @@
 
                         // Despawns enemies that are too far behind the camera
                         if (enemy.x + enemy.displayWidth < cameraLeftEdge - 100) {
-                            enemy.healthBar.destroy(); // Removes enemy health bar
+                            if (enemy.healthBar) enemy.healthBar.destroy(); // Ensures health bar is destroyed
                             enemy.destroy();
                             return;
                         }
@@ -1042,11 +1057,14 @@
 
                         const distanceToPlayer = Phaser.Math.Distance.Between(enemy.x, enemy.y, player.x, player.y);
                         const currentTime = this.time.now;
+                        let enemySpeed = 70; // Aumentado para 70 para melhor perseguição
+
+                        // Log para depuração do movimento do inimigo
+                        // console.log(`[Enemy ${enemy.body.id || enemy.x.toFixed(0)}] Distância ao player: ${distanceToPlayer.toFixed(2)}. PlayerX: ${player.x.toFixed(0)}, EnemyX: ${enemy.x.toFixed(0)}`);
+
 
                         // Pursuit logic
                         if (distanceToPlayer < ENEMY_PURSUIT_RANGE) {
-                            let enemySpeed = 50; // Base speed for pursuit
-
                             // Determine the check point for ground ahead
                             // 10 pixels ahead of enemy edge, 10 pixels below enemy base
                             let checkXOffset = (enemy.flipX ? -1 : 1) * (enemy.displayWidth / 2 + 10);
@@ -1055,35 +1073,41 @@
                             const groundAheadFound = platforms.children.entries.some(platform =>
                                 platform.active && platform.body.hitTest(enemy.x + checkXOffset, enemy.y + checkYOffset)
                             );
+                            // console.log(`[Enemy ${enemy.body.id || enemy.x.toFixed(0)}] Ground ahead found: ${groundAheadFound}`);
+
 
                             if (player.x < enemy.x) { // Player is to the left
                                 if (groundAheadFound) { // Only move if ground is ahead
                                     enemy.setVelocityX(-enemySpeed);
                                     enemy.setFlipX(true);
+                                    // console.log(`[Enemy ${enemy.body.id || enemy.x.toFixed(0)}] Moving left.`);
                                 } else {
                                     enemy.setVelocityX(0); // Stop if no ground
                                     enemy.setFlipX(true); // Still face player
+                                    // console.log(`[Enemy ${enemy.body.id || enemy.x.toFixed(0)}] Stopping (no ground left).`);
                                 }
                             } else { // Player is to the right
                                 if (groundAheadFound) { // Only move if ground is ahead
                                     enemy.setVelocityX(enemySpeed);
                                     enemy.setFlipX(false);
+                                    // console.log(`[Enemy ${enemy.body.id || enemy.x.toFixed(0)}] Moving right.`);
                                 } else {
                                     enemy.setVelocityX(0); // Stop if no ground
                                     enemy.setFlipX(false); // Still face player
+                                    // console.log(`[Enemy ${enemy.body.id || enemy.x.toFixed(0)}] Stopping (no ground right).`);
                                 }
                             }
 
                             // Lógica de ataque do inimigo
                             if (distanceToPlayer < ENEMY_ATTACK_RANGE) { // Inimigo na distância de ataque
-                                console.log(`[Inimigo] Em range de ataque. Distância: ${distanceToPlayer.toFixed(2)}`);
-                                console.log(`[Inimigo] Tempo atual: ${currentTime}, Último ataque: ${enemy.lastAttackTime}, Cooldown: ${ENEMY_ATTACK_COOLDOWN}`);
-                                console.log(`[Inimigo] Energia: ${enemy.currentEnergy.toFixed(2)}, Custo Ataque: ${ENEMY_ATTACK_DAMAGE}`);
+                                // console.log(`[Inimigo ${enemy.body.id || enemy.x.toFixed(0)}] Em range de ataque. Distância: ${distanceToPlayer.toFixed(2)}. Tentando atacar.`);
+                                // console.log(`[Inimigo ${enemy.body.id || enemy.x.toFixed(0)}] Tempo atual: ${currentTime}, Último ataque: ${enemy.lastAttackTime}, Cooldown: ${ENEMY_ATTACK_COOLDOWN}`);
+                                // console.log(`[Inimigo ${enemy.body.id || enemy.x.toFixed(0)}] Energia: ${enemy.currentEnergy.toFixed(2)}, Custo Ataque: ${ENEMY_ATTACK_DAMAGE}`);
 
                                 if (currentTime > enemy.lastAttackTime + ENEMY_ATTACK_COOLDOWN) {
-                                    console.log(`[Inimigo] Cooldown liberado.`);
+                                    // console.log(`[Inimigo ${enemy.body.id || enemy.x.toFixed(0)}] Cooldown liberado. Verificando energia.`);
                                     if (enemy.currentEnergy >= ENEMY_ATTACK_DAMAGE) {
-                                        console.log(`[Inimigo] Atacando jogador!`);
+                                        // console.log(`[Inimigo ${enemy.body.id || enemy.x.toFixed(0)}] Energia suficiente. Atacando jogador!`);
                                         enemy.lastAttackTime = currentTime;
                                         enemy.currentEnergy -= ENEMY_ATTACK_DAMAGE; // Consome energia do inimigo
                                         enemy.currentEnergy = Phaser.Math.Clamp(enemy.currentEnergy, 0, ENEMY_ENERGY);
@@ -1096,10 +1120,10 @@
                                             enemy.clearTint();
                                         }, [], this);
                                     } else {
-                                        console.log(`[Inimigo] Cooldown liberado, mas sem energia suficiente para atacar! Energia: ${enemy.currentEnergy.toFixed(2)}`);
+                                        // console.log(`[Inimigo ${enemy.body.id || enemy.x.toFixed(0)}] Cooldown liberado, mas sem energia suficiente para atacar! Energia: ${enemy.currentEnergy.toFixed(2)}`);
                                     }
                                 } else {
-                                    console.log(`[Inimigo] Ainda em cooldown. Restante: ${(enemy.lastAttackTime + ENEMY_ATTACK_COOLDOWN - currentTime).toFixed(0)}ms`);
+                                    // console.log(`[Inimigo ${enemy.body.id || enemy.x.toFixed(0)}] Ainda em cooldown. Restante: ${(enemy.lastAttackTime + ENEMY_ATTACK_COOLDOWN - currentTime).toFixed(0)}ms`);
                                 }
                             }
                         } else {
@@ -1114,13 +1138,16 @@
                             const groundFound = platforms.children.entries.some(platform =>
                                 platform.active && platform.body.hitTest(checkX, enemy.y + enemy.displayHeight / 2 + 10)
                             );
+                            // console.log(`[Enemy ${enemy.body.id || enemy.x.toFixed(0)}] Patrolling. Ground found: ${groundFound}`);
 
                             if (!groundFound || enemy.body.blocked.left || enemy.body.blocked.right) {
                                 enemy.setVelocityX(-enemy.body.velocity.x);
                                 enemy.setFlipX(enemy.body.velocity.x < 0);
+                                // console.log(`[Enemy ${enemy.body.id || enemy.x.toFixed(0)}] Changing direction due to no ground or collision.`);
                             } else if (enemy.body.velocity.x === 0) {
                                 enemy.setVelocityX(Phaser.Math.RND.pick([-50, 50]));
                                 enemy.setFlipX(enemy.body.velocity.x < 0);
+                                // console.log(`[Enemy ${enemy.body.id || enemy.x.toFixed(0)}] Starting patrol.`);
                             }
                         }
 
@@ -1253,29 +1280,8 @@
                  * @param {Phaser.Physics.Arcade.Sprite} player - The player object.
                  * @param {Phaser.Physics.Arcade.Sprite} enemy - The enemy object.
                  */
-                function hitEnemy(player, enemy) {
-                    // Checks if player is stomping on the enemy (player falling and hitting enemy from above)
-                    if (player.body.velocity.y > 0 && player.body.bottom <= enemy.body.y + 10) {
-                        // Player stomped on the enemy
-                        player.setVelocityY(-400); // Makes the player jump higher
-                        score += 10; // Adds points for stomping on the enemy
-                        enemy.currentHealth -= 25; // Enemy takes damage when stomped
-                        updateEnemyHealthBar(this, enemy); // Passes 'this' (the scene) as argument
-
-                        if (enemy.currentHealth <= 0) {
-                            enemy.healthBar.destroy(); // Removes enemy health bar
-                            enemy.destroy();
-                            score += 50; // Adds extra points for killing the enemy
-                        } else {
-                            // Visual feedback that the enemy was hit
-                            enemy.setTint(0xff6666); // Light red tint
-                            this.time.delayedCall(150, () => {
-                                enemy.clearTint();
-                            }, [], this);
-                        }
-                    }
-                    // Enemy attack collision is handled in the game's update function, in the enemy loop
-                }
+                // A função hitEnemy foi removida, pois a colisão direta do jogador com o inimigo foi desativada.
+                // A lógica de dano ao jogador por inimigos agora é tratada exclusivamente pelo ataque dentro do loop de atualização.
 
                 /**
                  * Handles projectile collision with an enemy (NEW).
@@ -1288,7 +1294,7 @@
                     updateEnemyHealthBar(this, enemy);
 
                     if (enemy.currentHealth <= 0) {
-                        enemy.healthBar.destroy(); // Removes enemy health bar
+                        if (enemy.healthBar) enemy.healthBar.destroy(); // Ensures health bar is destroyed
                         enemy.destroy();
                         score += 50; // Adds points for destroying an enemy
                     } else {
@@ -1320,16 +1326,27 @@
                  */
                 function takeDamage(scene, damageAmount) {
                     const currentTime = scene.time.now;
-                    if (currentTime < lastPlayerHitTime + PLAYER_HIT_COOLDOWN || isRespawning || gameOver) {
-                        console.log("takeDamage: Player invulnerable (cooldown, respawn or game over).");
+                    if (currentTime < lastPlayerHitTime + PLAYER_HIT_COOLDOWN) {
+                        // console.log(`[takeDamage] Dano BLOQUEADO: Personagem invulnerável. Tempo restante: ${((lastPlayerHitTime + PLAYER_HIT_COOLDOWN) - currentTime).toFixed(0)}ms`);
+                        return;
+                    }
+                    if (isRespawning) {
+                        // console.log("[takeDamage] Dano BLOQUEADO: Personagem em processo de respawn.");
+                        return;
+                    }
+                    if (gameOver) {
+                        // console.log("[takeDamage] Dano BLOQUEADO: Jogo encerrado.");
                         return;
                     }
 
-                    console.log(`takeDamage: Player taking ${damageAmount} damage. Current Health: ${currentHealth}`);
+                    // console.log(`[takeDamage] Personagem recebendo ${damageAmount} de dano. Vida atual ANTES: ${currentHealth}`);
                     currentHealth -= damageAmount;
                     currentHealth = Phaser.Math.Clamp(currentHealth, 0, MAX_HEALTH);
                     updateHealthBar(); // Updates HTML health bar
                     lastPlayerHitTime = currentTime; // Ensures this is updated after damage
+
+                    // console.log(`[takeDamage] Vida atual DEPOIS: ${currentHealth}. Tocando som de dano.`);
+                    scene.sound.play('damageSound');
 
                     player.setTint(0xff0000); // Visual feedback: player turns red
                     scene.time.delayedCall(300, () => {
@@ -1337,7 +1354,7 @@
                     }, [], scene);
 
                     if (currentHealth <= 0) {
-                        console.log("takeDamage: Player health dropped to 0 or less. Calling loseLife.");
+                        // console.log("[takeDamage] Vida da personagem chegou a zero ou menos. Chamando loseLife.");
                         loseLife(scene); // Loses a life if health reaches zero
                     }
                 }
@@ -1349,22 +1366,22 @@
                 function loseLife(scene) {
                     // Important: Prevents re-entry if already in respawn process or game has ended.
                     if (isRespawning || gameOver) {
-                        console.log("LoseLife: Re-entry or game already ended.");
+                        // console.log("LoseLife: Re-entrada ou jogo já encerrado.");
                         return;
                     }
 
                     isRespawning = true;
-                    console.log("LoseLife: Respawn process started. isRespawning = true.");
+                    // console.log("LoseLife: Processo de respawn iniciado. isRespawning = true.");
 
                     // Clears any existing respawn timer to prevent conflicting callbacks
                     if (respawnTimer) {
                         respawnTimer.remove(false);
                         respawnTimer = null;
-                        console.log("LoseLife: Previous respawn timer cleared.");
+                        // console.log("LoseLife: Temporizador de respawn anterior limpo.");
                     }
                     if (energyRechargeEvent) { // Pauses energy recharge during respawn
                         energyRechargeEvent.paused = true;
-                        console.log("LoseLife: Energy recharge event paused.");
+                        // console.log("LoseLife: Evento de recarga de energia pausado.");
                     }
 
 
@@ -1377,12 +1394,12 @@
                         enemy.destroy();
                     });
                     enemies.clear(true, true);
-                    console.log("LoseLife: Enemies cleared.");
+                    // console.log("LoseLife: Inimigos limpos.");
 
                     // Handles Game Over condition
                     if (lives <= 0) {
                         endGame(scene, false); // Calls endGame for Game Over
-                        console.log("LoseLife: Game Over condition reached.");
+                        // console.log("LoseLife: Condição de Game Over atingida.");
                         return; // Exits here, no need for respawn
                     }
 
@@ -1405,7 +1422,7 @@
                     });
 
                     if (!platformFoundForRespawn) {
-                        console.warn("LoseLife: No suitable platform found near respawn X. Forcing ground generation.");
+                        // console.warn("LoseLife: Nenhuma plataforma adequada encontrada perto do X de respawn. Forçando geração de solo.");
                         const tempGround = platforms.create(playerRespawnX - (TILE_SIZE / 2), 0, 'ground').setOrigin(0,0);
                         tempGround.setScale(TILE_SIZE / tempGround.width);
                         tempGround.y = gameHeight - tempGround.displayHeight;
@@ -1424,13 +1441,13 @@
                     updateEnergyBar(); // Updates HTML energy bar
                     updateHealthBar(); // Updates HTML health bar (NEW)
                     updateProjectilesText(); // Updates HTML projectile count (NEW)
-                    console.log(`LoseLife: Jogador posicionado em (${playerRespawnX}, ${respawnY}), velocidade reiniciada.`);
+                    // console.log(`LoseLife: Jogador posicionado em (${playerRespawnX}, ${respawnY}), velocidade reiniciada.`);
 
                     // Temporarily disables gravity and collisions to prevent falls on respawn
                     player.body.setAllowGravity(false);
                     player.body.setVelocityY(0);
                     player.body.enable = false; // Completely disables the physics body
-                    console.log("LoseLife: Corpo do jogador desativado.");
+                    // console.log("LoseLife: Corpo do jogador desativado.");
 
                     // Resets input flags and virtual button visual state
                     isALeftPressed = false;
@@ -1447,7 +1464,7 @@
 
                     // Schedules physics reactivation and other states
                     respawnTimer = scene.time.delayedCall(1500, () => {
-                        console.log("Callback do temporizador de respawn: Acionado.");
+                        // console.log("Callback do temporizador de respawn: Acionado.");
 
                         // Ensures these settings are applied only if the player is still alive
                         if (!gameOver) {
@@ -1471,27 +1488,27 @@
 
                             if (player.body.allowGravity && !player.body.onFloor()) {
                                 player.setVelocityY(50);
-                                console.log("Callback do temporizador de respawn: Empurrando o jogador para baixo.");
+                                // console.log("Callback do temporizador de respawn: Empurrando o jogador para baixo.");
                             }
 
                             player.body.enable = true; // Explicitly reactivates physics body - critical!
-                            console.log("Callback do temporizador de respawn: Corpo do jogador reativado.");
+                            // console.log("Callback do temporizador de respawn: Corpo do jogador reativado.");
 
                             if (energyRechargeEvent) { // Resumes energy recharge
                                 energyRechargeEvent.paused = false;
-                                console.log("Callback do temporizador de respawn: Evento de recarga de energia retomado.");
+                                // console.log("Callback do temporizador de respawn: Evento de recarga de energia retomado.");
                             }
                         } else {
                              // If game ended while timer was running, ensures player body remains disabled
                              player.body.enable = false;
-                             console.log("Callback do temporizador de respawn: Fim de Jogo. Corpo do jogador permanece desativado.");
+                             // console.log("Callback do temporizador de respawn: Fim de Jogo. Corpo do jogador permanece desativado.");
                         }
 
-                        console.log("Callback do temporizador de respawn: Geração de inimigos tratada pelo temporizador principal.");
+                        // console.log("Callback do temporizador de respawn: Geração de inimigos tratada pelo temporizador principal.");
 
                         isRespawning = false; // Resets flag when respawn process is complete
                         respawnTimer = null; // Clears timer reference
-                        console.log("Callback do temporizador de respawn: isRespawning = false. Temporizador limpo.");
+                        // console.log("Callback do temporizador de respawn: isRespawning = false. Temporizador limpo.");
                     }, [], scene);
                 }
 
@@ -1653,7 +1670,7 @@
                  * @param {Phaser.Scene} scene - The current Phaser scene.
                  */
                 function restartGame(scene) {
-                    console.log("Reiniciando o jogo...");
+                    // console.log("Reiniciando o jogo...");
                     // Resets all global game variables to initial state
                     score = 0; // Re-added score reset
                     coinsCollected = 0; // Re-added coinsCollected reset
